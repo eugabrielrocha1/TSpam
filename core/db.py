@@ -64,6 +64,21 @@ def init_db():
             key   TEXT PRIMARY KEY,
             value TEXT DEFAULT ''
         );
+
+        CREATE TABLE IF NOT EXISTS farmed_accounts (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone       TEXT UNIQUE NOT NULL,
+            api_id      TEXT NOT NULL,
+            api_hash    TEXT NOT NULL,
+            sms_provider TEXT DEFAULT '',
+            country     TEXT DEFAULT 'US',
+            cost        REAL DEFAULT 0.0,
+            status      TEXT DEFAULT 'creating',
+            farm_stage  TEXT DEFAULT 'new',
+            created_at  TEXT DEFAULT (datetime('now')),
+            aged_days   INTEGER DEFAULT 0,
+            last_activity TEXT DEFAULT ''
+        );
     """)
     conn.commit()
     conn.close()
@@ -222,3 +237,83 @@ def set_setting(key, value):
             (key, str(value)))
         conn.commit()
         conn.close()
+
+
+# ─── Self-Farm helpers ─────────────────────────────────────────────
+def add_farmed_account(phone, api_id, api_hash, sms_provider="",
+                       country="US", cost=0.0):
+    """Insert a new farmed account and also add it to the main accounts table."""
+    with _lock:
+        conn = get_connection()
+        try:
+            conn.execute("""
+                INSERT OR REPLACE INTO farmed_accounts
+                    (phone, api_id, api_hash, sms_provider, country, cost, status)
+                VALUES (?, ?, ?, ?, ?, ?, 'created')
+            """, (phone, api_id, api_hash, sms_provider, country, cost))
+            # Also add to main accounts table for adder round-robin
+            conn.execute("""
+                INSERT OR REPLACE INTO accounts
+                    (phone, api_id, api_hash, session_file, status)
+                VALUES (?, ?, ?, ?, 'farmed')
+            """, (phone, api_id, api_hash, f"sessions/{phone}"))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_farmed_accounts(status=None):
+    conn = get_connection()
+    if status:
+        rows = conn.execute(
+            "SELECT * FROM farmed_accounts WHERE status=? ORDER BY id DESC",
+            (status,)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM farmed_accounts ORDER BY id DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_farm_status(phone, status, farm_stage=None):
+    with _lock:
+        conn = get_connection()
+        if farm_stage:
+            conn.execute(
+                "UPDATE farmed_accounts SET status=?, farm_stage=? WHERE phone=?",
+                (status, farm_stage, phone))
+        else:
+            conn.execute(
+                "UPDATE farmed_accounts SET status=? WHERE phone=?",
+                (status, phone))
+        conn.commit()
+        conn.close()
+
+
+def update_farm_activity(phone):
+    """Update last_activity timestamp and increment aged_days."""
+    with _lock:
+        conn = get_connection()
+        conn.execute("""
+            UPDATE farmed_accounts
+            SET last_activity = datetime('now'),
+                aged_days = CAST((julianday('now') - julianday(created_at)) AS INTEGER)
+            WHERE phone = ?
+        """, (phone,))
+        conn.commit()
+        conn.close()
+
+
+def get_farm_stats():
+    conn = get_connection()
+    total = conn.execute("SELECT COUNT(*) as c FROM farmed_accounts").fetchone()["c"]
+    created = conn.execute(
+        "SELECT COUNT(*) as c FROM farmed_accounts WHERE status='created'").fetchone()["c"]
+    aged = conn.execute(
+        "SELECT COUNT(*) as c FROM farmed_accounts WHERE aged_days >= 30").fetchone()["c"]
+    failed = conn.execute(
+        "SELECT COUNT(*) as c FROM farmed_accounts WHERE status='failed'").fetchone()["c"]
+    cost = conn.execute(
+        "SELECT COALESCE(SUM(cost), 0) as c FROM farmed_accounts").fetchone()["c"]
+    conn.close()
+    return {"total": total, "created": created, "aged": aged, "failed": failed, "total_cost": cost}

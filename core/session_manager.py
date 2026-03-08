@@ -210,3 +210,27 @@ class SessionManager:
                 logger.error(f"Reset failed for {phone}: {e}")
         else:
             logger.warning(f"Cannot reset {phone} — not connected or not authorized")
+
+    async def import_farmed_session(self, phone: str, api_id: int, api_hash: str):
+        """Import a farmed session into the live client pool for adder use."""
+        session_path = self._session_path(phone)
+        try:
+            client = TelegramClient(
+                session_path, api_id, api_hash,
+                device_model="Telegram Desktop 5.12.0 x64",
+                system_version="Windows 11 Pro",
+                app_version="5.12.0",
+                lang_code="pt-br",
+                system_lang_code="pt-br",
+            )
+            await client.connect()
+            if await client.is_user_authorized():
+                self.clients[phone] = client
+                update_account_status(phone, "connected")
+                logger.success(f"Imported farmed session: {phone}")
+            else:
+                logger.warning(f"Farmed session {phone} not authorized")
+                await client.disconnect()
+        except Exception as e:
+            logger.error(f"Import farmed session failed for {phone}: {e}")
+

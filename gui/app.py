@@ -6,6 +6,7 @@ import customtkinter as ctk
 from gui.tabs.accounts import AccountsTab
 from gui.tabs.scraper import ScraperTab
 from gui.tabs.adder import AdderTab
+from gui.tabs.self_farm_tab import SelfFarmTab
 from gui.tabs.logs import LogsTab
 from gui.tabs.settings import SettingsTab
 from core.session_manager import SessionManager
@@ -115,6 +116,7 @@ class CyberTGApp(ctk.CTk):
         tab_accounts = self.tabview.add("  📱 Accounts  ")
         tab_scraper  = self.tabview.add("  🔍 Scraper  ")
         tab_adder    = self.tabview.add("  ➕ Adder  ")
+        tab_farm     = self.tabview.add("  🌱 Self-Farm  ")
         tab_logs     = self.tabview.add("  📋 Logs  ")
         tab_settings = self.tabview.add("  ⚙️ Settings  ")
 
@@ -122,6 +124,7 @@ class CyberTGApp(ctk.CTk):
         self.accounts_tab = AccountsTab(tab_accounts, self.session_manager)
         self.scraper_tab  = ScraperTab(tab_scraper, self.session_manager)
         self.adder_tab    = AdderTab(tab_adder, self.session_manager)
+        self.farm_tab     = SelfFarmTab(tab_farm, self.session_manager)
         self.logs_tab     = LogsTab(tab_logs)
         self.settings_tab = SettingsTab(tab_settings)
 
