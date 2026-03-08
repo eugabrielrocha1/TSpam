@@ -4,10 +4,11 @@ Bulk-add scraped users to a target group with anti-ban controls.
 """
 import asyncio
 import threading
+from datetime import datetime
 import customtkinter as ctk
 from core.session_manager import SessionManager
 from core.adder import add_members
-from core.db import get_scraped_users, get_source_groups, get_scraped_count
+from core.db import get_scraped_users, get_source_groups, get_scraped_count, get_all_accounts
 from core.logger import logger
 
 BG_DARK      = "#0a0e27"
@@ -106,6 +107,31 @@ class AdderTab:
         self.delay_min.configure(command=lambda v: self.delay_min_label.configure(text=f"{int(v)}s"))
         self.delay_max.configure(command=lambda v: self.delay_max_label.configure(text=f"{int(v)}s"))
 
+        # Row 2.5: Batch size + Aged filter
+        row2b = ctk.CTkFrame(config, fg_color="transparent")
+        row2b.pack(fill="x", padx=15, pady=(5, 3))
+
+        ctk.CTkLabel(row2b, text="Batch Size:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 5))
+        self.batch_size = ctk.CTkSlider(row2b, from_=10, to=200, number_of_steps=19,
+                                         width=150, height=18,
+                                         fg_color=BG_INPUT,
+                                         progress_color=NEON_GREEN,
+                                         button_color=NEON_CYAN)
+        self.batch_size.set(80)
+        self.batch_size.pack(side="left", padx=3)
+        self.batch_size_label = ctk.CTkLabel(row2b, text="80", text_color=NEON_CYAN,
+                                              font=ctk.CTkFont(size=12, weight="bold"))
+        self.batch_size_label.pack(side="left", padx=(0, 20))
+        self.batch_size.configure(command=lambda v: self.batch_size_label.configure(text=f"{int(v)}"))
+
+        self.filter_aged = ctk.CTkCheckBox(row2b, text="🔒 Only Aged Accounts (+30 days)",
+                                            fg_color=NEON_PURPLE,
+                                            hover_color="#6d28d9",
+                                            text_color=TEXT_PRIMARY,
+                                            font=ctk.CTkFont(size=12))
+        self.filter_aged.pack(side="left", padx=15)
+
         # Row 3: Buttons
         row3 = ctk.CTkFrame(config, fg_color="transparent")
         row3.pack(fill="x", padx=15, pady=(8, 12))
@@ -164,11 +190,14 @@ class AdderTab:
                      text_color=NEON_GREEN).pack(anchor="w", padx=15, pady=(12, 5))
 
         protections = [
+            "• BATCH ADD: sends up to 80 users per API call (10x faster)",
             "• Round-robin account rotation distributes rate limits",
-            "• Random delay between 8-25s (configurable) prevents detection",
+            "• Random delay between batches prevents detection",
+            "• Auto-fallback to single-add on batch errors",
             "• Auto-sleep on FloodWait errors with smart backoff",
             "• Auto-disable accounts after 3 flood errors or PeerFlood",
-            "• Full error handling: Privacy, NotMutual, Banned, Deactivated",
+            "• Aged filter: prioritize accounts with +30 days for higher limits",
+            "• Desktop fingerprint: Telegram Desktop 5.12.0 x64 identity",
         ]
         for p in protections:
             ctk.CTkLabel(info, text=p, text_color=TEXT_MUTED,
@@ -199,7 +228,27 @@ class AdderTab:
         self.stat_accounts.configure(text=str(count))
 
     def _start_add(self):
-        clients = self.sm.get_connected_clients()
+        # ── Aged filter: only use accounts created 30+ days ago ──
+        if self.filter_aged.get():
+            all_accounts = get_all_accounts()
+            aged_phones = []
+            for acc in all_accounts:
+                created = acc.get("created_at")
+                if created:
+                    try:
+                        age_days = (datetime.now() - datetime.fromisoformat(created)).days
+                        if age_days >= 30:
+                            aged_phones.append(acc["phone"])
+                    except Exception:
+                        pass
+            clients = [self.sm.get_client(p) for p in aged_phones if self.sm.get_client(p)]
+            if not clients:
+                logger.error("No aged accounts (30+ days) connected — uncheck filter or add older accounts")
+                return
+            logger.info(f"Using {len(clients)} aged account(s) for adding")
+        else:
+            clients = self.sm.get_connected_clients()
+
         if not clients:
             logger.error("No connected accounts — go to Accounts tab first")
             return
@@ -234,11 +283,13 @@ class AdderTab:
         if d_max < d_min:
             d_max = d_min + 5
 
+        b_size = int(self.batch_size.get())
+
         threading.Thread(target=self._adder_thread,
-                         args=(clients, target, users, d_min, d_max),
+                         args=(clients, target, users, d_min, d_max, b_size),
                          daemon=True).start()
 
-    def _adder_thread(self, clients, target, users, d_min, d_max):
+    def _adder_thread(self, clients, target, users, d_min, d_max, batch_size=80):
         """Dispatch add_members to the SM's shared event loop."""
         def on_progress(added, skipped, failed, total):
             self.parent.after(0, lambda: self._update_progress(added, skipped, failed, total))
@@ -250,10 +301,11 @@ class AdderTab:
                 users=users,
                 delay_min=d_min,
                 delay_max=d_max,
+                batch_size=batch_size,
                 progress_callback=on_progress,
                 pause_event=self._pause_event,
                 stop_event=self._stop_event,
-            ), timeout=86400)  # Allow long-running adder
+            ), timeout=86400)
         except Exception as e:
             logger.error(f"Adder error: {e}")
         finally:

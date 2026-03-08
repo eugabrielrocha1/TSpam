@@ -1,0 +1,2624 @@
+
+
+=== FILE: .\build.py ===
+
+"""
+CyberTG – PyInstaller Build Script
+Compiles the project into a standalone .exe
+"""
+import os
+import sys
+import subprocess
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+MAIN_SCRIPT = os.path.join(PROJECT_ROOT, "main.py")
+DIST_DIR = os.path.join(PROJECT_ROOT, "dist")
+BUILD_DIR = os.path.join(PROJECT_ROOT, "build")
+
+
+def build():
+    print("=" * 60)
+    print("  CyberTG Mass Scraper & Adder 2026 — Build to EXE")
+    print("=" * 60)
+
+    cmd = [
+        sys.executable, "-m", "PyInstaller",
+        "--name", "CyberTG_2026",
+        "--onefile",
+        "--windowed",
+        "--clean",
+        "--noconfirm",
+        # Hidden imports for Telethon + CustomTkinter
+        "--hidden-import", "telethon",
+        "--hidden-import", "telethon.crypto",
+        "--hidden-import", "telethon.tl",
+        "--hidden-import", "customtkinter",
+        "--hidden-import", "socks",
+        "--hidden-import", "cryptg",
+        "--hidden-import", "sqlite3",
+        # Add data files
+        "--add-data", f"core{os.pathsep}core",
+        "--add-data", f"gui{os.pathsep}gui",
+        # Paths
+        "--distpath", DIST_DIR,
+        "--workpath", BUILD_DIR,
+        "--specpath", PROJECT_ROOT,
+        # Main script
+        MAIN_SCRIPT,
+    ]
+
+    print(f"\nRunning: {' '.join(cmd[:10])}...\n")
+    result = subprocess.run(cmd, cwd=PROJECT_ROOT)
+
+    if result.returncode == 0:
+        exe_path = os.path.join(DIST_DIR, "CyberTG_2026.exe")
+        print(f"\n✅ Build successful!")
+        print(f"   Executable: {exe_path}")
+        print(f"   Size: {os.path.getsize(exe_path) / 1024 / 1024:.1f} MB")
+    else:
+        print(f"\n❌ Build failed with exit code {result.returncode}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    build()
+
+
+=== FILE: .\main.py ===
+
+"""
+CyberTG Mass Scraper & Adder 2026
+─────────────────────────────────
+Professional Telegram automation desktop tool.
+Entry point — initializes database and launches the GUI.
+"""
+import os
+import sys
+
+# Ensure project root is on sys.path
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from core.db import init_db
+from core.logger import logger
+from gui.app import CyberTGApp
+
+
+def main():
+    # Create sessions directory
+    os.makedirs(os.path.join(PROJECT_ROOT, "sessions"), exist_ok=True)
+
+    # Initialize database
+    init_db()
+    logger.info("CyberTG Mass Scraper & Adder 2026 starting...")
+    logger.info("Database initialized")
+
+    # Launch application
+    app = CyberTGApp()
+    app.mainloop()
+
+
+if __name__ == "__main__":
+    main()
+
+
+=== FILE: .\tg_scraper_adder.py ===
+
+
+
+=== FILE: .\requirements.txt ===
+
+telethon>=1.36.0
+cryptg>=0.4.0
+customtkinter>=5.2.0
+PySocks>=1.7.0
+pyinstaller>=6.0.0
+
+
+=== FILE: .\TSpam_Complete_Source.txt ===
+
+
+
+=== FILE: .\README.md ===
+
+# ⚡ CyberTG Mass Scraper & Adder 2026
+
+Professional Telegram automation desktop tool built with **Telethon**, **CustomTkinter**, and **SQLite**.
+
+---
+
+## 🚀 Features
+
+- **Multi-Account Sessions** — Login with multiple phone numbers, save sessions
+- **Proxy Support** — SOCKS5 and HTTP proxy per account
+- **Smart Scraper** — Scrape group/channel members with filters (username, not-bot, last-seen, photo)
+- **Bulk Adder** — Add users in batch with random delay (8-25s), pause/resume, progress bar
+- **Anti-Ban Protection** — FloodWait handling, PeerFlood auto-switch, account round-robin
+- **Real-Time Logs** — Colored log viewer with CSV/TXT export
+- **Compile to `.exe`** — Built-in PyInstaller compilation button
+
+---
+
+## 📦 Installation
+
+### Prerequisites
+- **Python 3.10+** (recommended: 3.11 or 3.12)
+- **Telegram API credentials** from [my.telegram.org](https://my.telegram.org)
+
+### Steps
+
+```bash
+# 1. Clone or download the project folder
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the application
+python main.py
+```
+
+---
+
+## 🗂️ Project Structure
+
+```
+TSpamV2/
+├── main.py                  # Entry point
+├── build.py                 # PyInstaller build script
+├── requirements.txt         # Dependencies
+├── core/
+│   ├── db.py                # SQLite database layer
+│   ├── session_manager.py   # Multi-session Telethon manager
+│   ├── scraper.py           # Group member scraper
+│   ├── adder.py             # Bulk member adder
+│   └── logger.py            # Thread-safe logger
+├── gui/
+│   ├── app.py               # Main window + theme
+│   └── tabs/
+│       ├── accounts.py      # Account management tab
+│       ├── scraper.py       # Scraper tab
+│       ├── adder.py         # Adder tab
+│       ├── logs.py          # Logs tab
+│       └── settings.py      # Settings tab
+└── sessions/                # Auto-created .session files
+```
+
+---
+
+## 🎯 Usage Guide
+
+### 1. Setup API Credentials
+1. Go to **Settings** tab
+2. Enter your **API ID** and **API Hash** from [my.telegram.org](https://my.telegram.org)
+3. Click **Save API Credentials**
+
+### 2. Add Accounts
+1. Go to **Accounts** tab
+2. Enter phone number (international format, e.g. `+5511999999999`)
+3. Enter API ID and API Hash
+4. Optionally configure proxy (SOCKS5/HTTP)
+5. Click **Add & Login** → enter the code sent to your Telegram
+
+### 3. Scrape Members
+1. Go to **Scraper** tab
+2. Paste the group/channel link
+3. Select a connected account
+4. Configure filters (has username, not bot, last seen, has photo)
+5. Click **Start Scraping**
+
+### 4. Add Members
+1. Go to **Adder** tab
+2. Enter the target group link
+3. Select user source (all scraped or specific group)
+4. Adjust delay range (recommended: 8-25s)
+5. Click **Start Adding**
+6. Use Pause/Resume/Stop as needed
+
+### 5. Export Logs
+1. Go to **Logs** tab
+2. Click **Export TXT** or **Export CSV**
+
+### 6. Build to EXE
+1. Go to **Settings** tab
+2. Click **Build .exe**
+3. Find the executable in `dist/CyberTG_2026.exe`
+
+---
+
+## 🛡️ Anti-Ban Protections
+
+| Protection | Description |
+|---|---|
+| Account Rotation | Round-robin across all connected accounts |
+| Random Delay | 8-25s randomized delay between each add |
+| FloodWait Handling | Auto-sleep when Telegram sends FloodWait |
+| PeerFlood Switch | Automatically disables flooded accounts |
+| 3-Strike Disable | Account disabled after 3 consecutive floods |
+| Error Categorization | Privacy, NotMutual, Banned — all handled gracefully |
+
+---
+
+## 📋 Compile to Standalone EXE
+
+```bash
+python build.py
+```
+
+Or click the **Build .exe** button in the Settings tab.
+
+The executable will be created at `dist/CyberTG_2026.exe`.
+
+---
+
+**CyberTG Mass Scraper & Adder 2026** — Made with ⚡
+
+
+=== FILE: core\adder.py ===
+
+"""
+CyberTG – Bulk Member Adder
+Adds scraped users to a target group with anti-ban measures.
+"""
+import asyncio
+import random
+from telethon.tl.functions.channels import InviteToChannelRequest
+from telethon.tl.types import InputPeerUser
+from telethon.errors import (
+    FloodWaitError,
+    UserPrivacyRestrictedError,
+    PeerFloodError,
+    UserNotMutualContactError,
+    ChatWriteForbiddenError,
+    UserChannelsTooMuchError,
+    UserKickedError,
+    UserBannedInChannelError,
+    InputUserDeactivatedError,
+    UserAlreadyParticipantError,
+)
+from core.db import update_user_added_status
+from core.logger import logger
+from core.scraper import resolve_group
+
+
+async def add_members(clients: list, target_group_link: str,
+                      users: list, delay_min: int = 8, delay_max: int = 25,
+                      progress_callback=None,
+                      pause_event: asyncio.Event = None,
+                      stop_event: asyncio.Event = None):
+    """
+    Add users to a target group using round-robin across multiple clients.
+
+    Args:
+        clients: List of connected TelegramClient instances
+        target_group_link: Link or username of the target group
+        users: List of user dicts from scraper/DB
+        delay_min/max: Random delay range between adds
+        progress_callback: fn(added, skipped, failed, total)
+        pause_event: Set = paused, unset = running
+        stop_event: Set = stop everything
+    """
+    if not clients:
+        logger.error("No connected accounts available for adding")
+        return
+
+    # Resolve target group with first client
+    target = await resolve_group(clients[0], target_group_link)
+    if not target:
+        logger.error("Could not resolve target group")
+        return
+
+    target_title = getattr(target, "title", target_group_link)
+    logger.info(f"Starting adder → '{target_title}' with {len(clients)} account(s), {len(users)} users")
+
+    added = 0
+    skipped = 0
+    failed = 0
+    total = len(users)
+    client_idx = 0
+    flood_counts = {i: 0 for i in range(len(clients))}
+    disabled_clients = set()
+
+    for i, user in enumerate(users):
+        # Check stop
+        if stop_event and stop_event.is_set():
+            logger.warning("Adder stopped by user")
+            break
+
+        # Check pause
+        if pause_event and pause_event.is_set():
+            logger.info("Adder paused — waiting for resume...")
+            while pause_event.is_set():
+                if stop_event and stop_event.is_set():
+                    break
+                await asyncio.sleep(0.5)
+            if stop_event and stop_event.is_set():
+                break
+            logger.info("Adder resumed")
+
+        # Skip if all clients are disabled
+        if len(disabled_clients) >= len(clients):
+            logger.error("All accounts hit PeerFlood — stopping adder")
+            break
+
+        # Round-robin to next available client
+        attempts = 0
+        while client_idx in disabled_clients and attempts < len(clients):
+            client_idx = (client_idx + 1) % len(clients)
+            attempts += 1
+
+        client = clients[client_idx]
+        user_id = user.get("user_id", 0)
+        username = user.get("username", "")
+        display = username or str(user_id)
+
+        try:
+            # Resolve target on this client too
+            target_entity = await resolve_group(client, target_group_link)
+            if not target_entity:
+                logger.error(f"Client {client_idx} cannot resolve target")
+                disabled_clients.add(client_idx)
+                client_idx = (client_idx + 1) % len(clients)
+                failed += 1
+                continue
+
+            # Get the user entity
+            try:
+                user_entity = await client.get_input_entity(user_id)
+            except Exception:
+                if username:
+                    try:
+                        user_entity = await client.get_input_entity(username)
+                    except Exception:
+                        logger.warning(f"Cannot resolve user {display} — skipping")
+                        skipped += 1
+                        update_user_added_status(user_id, "skipped")
+                        if progress_callback:
+                            progress_callback(added, skipped, failed, total)
+                        continue
+                else:
+                    logger.warning(f"Cannot resolve user {display} — skipping")
+                    skipped += 1
+                    update_user_added_status(user_id, "skipped")
+                    if progress_callback:
+                        progress_callback(added, skipped, failed, total)
+                    continue
+
+            await client(InviteToChannelRequest(target_entity, [user_entity]))
+            added += 1
+            update_user_added_status(user_id, "added")
+            logger.success(f"[{added}/{total}] Added {display} (via account #{client_idx})")
+
+        except UserAlreadyParticipantError:
+            skipped += 1
+            update_user_added_status(user_id, "already_member")
+            logger.info(f"User {display} already in group — skipped")
+
+        except UserPrivacyRestrictedError:
+            skipped += 1
+            update_user_added_status(user_id, "privacy")
+            logger.warning(f"Privacy restricted: {display}")
+
+        except UserNotMutualContactError:
+            skipped += 1
+            update_user_added_status(user_id, "not_mutual")
+            logger.warning(f"Not mutual contact: {display}")
+
+        except UserChannelsTooMuchError:
+            skipped += 1
+            update_user_added_status(user_id, "too_many_channels")
+            logger.warning(f"User in too many channels: {display}")
+
+        except UserKickedError:
+            skipped += 1
+            update_user_added_status(user_id, "kicked")
+            logger.warning(f"User was kicked from group: {display}")
+
+        except UserBannedInChannelError:
+            skipped += 1
+            update_user_added_status(user_id, "banned_channel")
+            logger.warning(f"User banned in channel: {display}")
+
+        except InputUserDeactivatedError:
+            skipped += 1
+            update_user_added_status(user_id, "deactivated")
+            logger.warning(f"User deactivated: {display}")
+
+        except ChatWriteForbiddenError:
+            logger.error("Cannot write to target group — check permissions")
+            failed += 1
+            break
+
+        except FloodWaitError as e:
+            logger.error(f"FloodWait {e.seconds}s on account #{client_idx}")
+            flood_counts[client_idx] = flood_counts.get(client_idx, 0) + 1
+
+            if flood_counts[client_idx] >= 3:
+                logger.error(f"Account #{client_idx} disabled (3 floods)")
+                disabled_clients.add(client_idx)
+            else:
+                wait_time = min(e.seconds + 5, 300)
+                logger.warning(f"Sleeping {wait_time}s for FloodWait...")
+                await asyncio.sleep(wait_time)
+
+            failed += 1
+            update_user_added_status(user_id, "flood_error")
+
+        except PeerFloodError:
+            logger.error(f"PeerFlood on account #{client_idx} — disabling")
+            disabled_clients.add(client_idx)
+            failed += 1
+            update_user_added_status(user_id, "peer_flood")
+
+        except Exception as e:
+            failed += 1
+            update_user_added_status(user_id, "error")
+            logger.error(f"Error adding {display}: {e}")
+
+        # Progress callback
+        if progress_callback:
+            progress_callback(added, skipped, failed, total)
+
+        # Rotate client
+        client_idx = (client_idx + 1) % len(clients)
+
+        # Random delay
+        delay = random.uniform(delay_min, delay_max)
+        logger.info(f"Waiting {delay:.1f}s before next add...")
+        await asyncio.sleep(delay)
+
+    logger.success(f"Adder finished — Added: {added}, Skipped: {skipped}, Failed: {failed}")
+    return {"added": added, "skipped": skipped, "failed": failed, "total": total}
+
+
+=== FILE: core\db.py ===
+
+"""
+CyberTG – SQLite Database Manager
+Stores accounts, scraped users, and app settings.
+"""
+import sqlite3
+import os
+import threading
+from datetime import datetime
+
+DB_NAME = "cybertg.db"
+
+_lock = threading.Lock()
+
+
+def _db_path() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), DB_NAME)
+
+
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(_db_path(), check_same_thread=False, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_db():
+    """Create tables if they don't exist."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS accounts (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone       TEXT UNIQUE NOT NULL,
+            api_id      TEXT NOT NULL,
+            api_hash    TEXT NOT NULL,
+            proxy_type  TEXT DEFAULT '',
+            proxy_addr  TEXT DEFAULT '',
+            proxy_port  INTEGER DEFAULT 0,
+            proxy_user  TEXT DEFAULT '',
+            proxy_pass  TEXT DEFAULT '',
+            session_file TEXT DEFAULT '',
+            status      TEXT DEFAULT 'disconnected',
+            created_at  TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS scraped_users (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER NOT NULL,
+            username     TEXT DEFAULT '',
+            first_name   TEXT DEFAULT '',
+            last_name    TEXT DEFAULT '',
+            phone        TEXT DEFAULT '',
+            has_photo    INTEGER DEFAULT 0,
+            last_seen    TEXT DEFAULT '',
+            source_group TEXT DEFAULT '',
+            scraped_at   TEXT DEFAULT (datetime('now')),
+            added_status TEXT DEFAULT 'pending',
+            UNIQUE(user_id, source_group)
+        );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT DEFAULT ''
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+# ─── Account helpers ────────────────────────────────────────────────
+def add_account(phone, api_id, api_hash, proxy_type="", proxy_addr="",
+                proxy_port=0, proxy_user="", proxy_pass=""):
+    with _lock:
+        conn = get_connection()
+        try:
+            conn.execute("""
+                INSERT OR REPLACE INTO accounts
+                    (phone, api_id, api_hash, proxy_type, proxy_addr,
+                     proxy_port, proxy_user, proxy_pass, session_file)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (phone, api_id, api_hash, proxy_type, proxy_addr,
+                  proxy_port, proxy_user, proxy_pass, f"sessions/{phone}"))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_all_accounts():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM accounts ORDER BY id").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_account_status(phone, status):
+    with _lock:
+        conn = get_connection()
+        conn.execute("UPDATE accounts SET status=? WHERE phone=?", (status, phone))
+        conn.commit()
+        conn.close()
+
+
+def delete_account(phone):
+    with _lock:
+        conn = get_connection()
+        conn.execute("DELETE FROM accounts WHERE phone=?", (phone,))
+        conn.commit()
+        conn.close()
+
+
+# ─── Scraped users helpers ─────────────────────────────────────────
+def insert_scraped_user(user_id, username, first_name, last_name,
+                        phone, has_photo, last_seen, source_group):
+    with _lock:
+        conn = get_connection()
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO scraped_users
+                    (user_id, username, first_name, last_name, phone,
+                     has_photo, last_seen, source_group)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, username, first_name, last_name,
+                  phone, 1 if has_photo else 0, last_seen, source_group))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def insert_scraped_users_batch(users_list: list):
+    """Insert multiple scraped users in a single transaction."""
+    if not users_list:
+        return
+    with _lock:
+        conn = get_connection()
+        try:
+            conn.executemany("""
+                INSERT OR IGNORE INTO scraped_users
+                    (user_id, username, first_name, last_name, phone,
+                     has_photo, last_seen, source_group)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, users_list)
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_scraped_users(source_group=None, status="pending"):
+    conn = get_connection()
+    if source_group:
+        rows = conn.execute(
+            "SELECT * FROM scraped_users WHERE source_group=? AND added_status=? ORDER BY id",
+            (source_group, status)).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM scraped_users WHERE added_status=? ORDER BY id",
+            (status,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_scraped_users():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM scraped_users ORDER BY id DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_source_groups():
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT DISTINCT source_group FROM scraped_users ORDER BY source_group"
+    ).fetchall()
+    conn.close()
+    return [r["source_group"] for r in rows]
+
+
+def update_user_added_status(user_id, status):
+    with _lock:
+        conn = get_connection()
+        conn.execute(
+            "UPDATE scraped_users SET added_status=? WHERE user_id=?",
+            (status, user_id))
+        conn.commit()
+        conn.close()
+
+
+def get_scraped_count(source_group=None):
+    conn = get_connection()
+    if source_group:
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM scraped_users WHERE source_group=?",
+            (source_group,)).fetchone()
+    else:
+        row = conn.execute("SELECT COUNT(*) as cnt FROM scraped_users").fetchone()
+    conn.close()
+    return row["cnt"]
+
+
+def clear_scraped_users():
+    with _lock:
+        conn = get_connection()
+        conn.execute("DELETE FROM scraped_users")
+        conn.commit()
+        conn.close()
+
+
+# ─── Settings helpers ──────────────────────────────────────────────
+def get_setting(key, default=""):
+    conn = get_connection()
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    with _lock:
+        conn = get_connection()
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            (key, str(value)))
+        conn.commit()
+        conn.close()
+
+
+=== FILE: core\logger.py ===
+
+"""
+CyberTG – Thread-safe Logger
+Queues log messages for the GUI to consume.
+"""
+import queue
+import csv
+import os
+from datetime import datetime
+
+LOG_LEVELS = {
+    "INFO":    "🔵",
+    "SUCCESS": "🟢",
+    "WARNING": "🟡",
+    "ERROR":   "🔴",
+}
+
+
+class Logger:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._queue = queue.Queue()
+            cls._instance._history = []
+        return cls._instance
+
+    def log(self, message: str, level: str = "INFO"):
+        ts = datetime.now().strftime("%H:%M:%S")
+        icon = LOG_LEVELS.get(level, "⚪")
+        entry = {
+            "timestamp": ts,
+            "level": level,
+            "icon": icon,
+            "message": message,
+            "full": f"[{ts}] {icon} [{level}] {message}"
+        }
+        self._history.append(entry)
+        self._queue.put(entry)
+
+    def info(self, msg):
+        self.log(msg, "INFO")
+
+    def success(self, msg):
+        self.log(msg, "SUCCESS")
+
+    def warning(self, msg):
+        self.log(msg, "WARNING")
+
+    def error(self, msg):
+        self.log(msg, "ERROR")
+
+    def drain(self):
+        """Drain all pending messages from the queue."""
+        entries = []
+        while not self._queue.empty():
+            try:
+                entries.append(self._queue.get_nowait())
+            except queue.Empty:
+                break
+        return entries
+
+    def get_history(self):
+        return list(self._history)
+
+    def clear(self):
+        self._history.clear()
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+
+    def export_txt(self, filepath: str):
+        with open(filepath, "w", encoding="utf-8") as f:
+            for entry in self._history:
+                f.write(entry["full"] + "\n")
+
+    def export_csv(self, filepath: str):
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Timestamp", "Level", "Message"])
+            for entry in self._history:
+                writer.writerow([entry["timestamp"], entry["level"], entry["message"]])
+
+
+logger = Logger()
+
+
+=== FILE: core\scraper.py ===
+
+"""
+CyberTG – Group Member Scraper
+Scrapes members from Telegram groups/channels with filtering.
+Uses the SessionManager's shared event loop — NO new clients created.
+"""
+import asyncio
+from datetime import datetime, timedelta, timezone
+from telethon.tl.functions.messages import ImportChatInviteRequest
+from telethon.tl.types import (
+    UserStatusRecently,
+    UserStatusOnline,
+    UserStatusOffline,
+    UserStatusLastWeek,
+    UserStatusLastMonth,
+)
+from telethon.errors import (
+    FloodWaitError,
+    ChannelPrivateError,
+    ChatAdminRequiredError,
+    InviteHashExpiredError,
+)
+from core.db import insert_scraped_users_batch
+from core.logger import logger
+
+
+async def resolve_group(client, group_link: str):
+    """Resolve a group link to an entity. Supports public links and invite hashes."""
+    link = group_link.strip()
+
+    # Private invite link: t.me/+HASH or t.me/joinchat/HASH
+    if "/+" in link or "/joinchat/" in link:
+        invite_hash = link.split("+")[-1] if "+" in link else link.split("/joinchat/")[-1]
+        invite_hash = invite_hash.strip("/")
+        try:
+            updates = await client(ImportChatInviteRequest(invite_hash))
+            return updates.chats[0]
+        except InviteHashExpiredError:
+            logger.error("Invite link expired or invalid")
+            return None
+        except Exception as e:
+            logger.error(f"Could not join via invite: {e}")
+            return None
+
+    # Public link or username
+    try:
+        if "t.me/" in link:
+            username = link.split("t.me/")[-1].strip("/").split("?")[0]
+        else:
+            username = link.strip("@")
+        entity = await client.get_entity(username)
+        return entity
+    except Exception as e:
+        logger.error(f"Could not resolve group: {e}")
+        return None
+
+
+def _check_last_seen(user, max_days: int) -> bool:
+    """Check if user was seen within max_days."""
+    status = user.status
+    if isinstance(status, (UserStatusOnline, UserStatusRecently)):
+        return True
+    if isinstance(status, UserStatusOffline):
+        if status.was_online:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=max_days)
+            return status.was_online.replace(tzinfo=timezone.utc) >= cutoff
+    if isinstance(status, UserStatusLastWeek) and max_days >= 7:
+        return True
+    if isinstance(status, UserStatusLastMonth) and max_days >= 30:
+        return True
+    return False
+
+
+def _last_seen_str(user) -> str:
+    status = user.status
+    if isinstance(status, UserStatusOnline):
+        return "online"
+    if isinstance(status, UserStatusRecently):
+        return "recently"
+    if isinstance(status, UserStatusOffline) and status.was_online:
+        return status.was_online.strftime("%Y-%m-%d %H:%M")
+    if isinstance(status, UserStatusLastWeek):
+        return "last_week"
+    if isinstance(status, UserStatusLastMonth):
+        return "last_month"
+    return "unknown"
+
+
+def _flush_batch(batch: list):
+    """Flush a batch of user tuples to the database."""
+    if batch:
+        try:
+            insert_scraped_users_batch(batch)
+        except Exception as e:
+            logger.warning(f"Batch insert warning: {e}")
+        batch.clear()
+
+
+async def scrape_group(client, group_link: str,
+                       filter_has_username: bool = True,
+                       filter_not_bot: bool = True,
+                       filter_last_seen_days: int = 30,
+                       filter_has_photo: bool = False,
+                       progress_callback=None,
+                       stop_event=None):
+    """
+    Scrape members from a group/channel using an EXISTING connected client.
+    This coroutine runs on the SessionManager's shared event loop.
+    """
+    all_users = []
+    batch_buffer = []
+    BATCH_SIZE = 50
+
+    entity = await resolve_group(client, group_link)
+    if not entity:
+        return []
+
+    source_name = getattr(entity, "title", str(group_link))
+    logger.info(f"Scraping '{source_name}'...")
+
+    total_fetched = 0
+
+    try:
+        async for user in client.iter_participants(entity, aggressive=True):
+            if stop_event and stop_event.is_set():
+                logger.warning("Scrape stopped by user")
+                break
+
+            total_fetched += 1
+
+            # Apply filters
+            if filter_not_bot and user.bot:
+                continue
+            if filter_has_username and not user.username:
+                continue
+            if filter_has_photo and not user.photo:
+                continue
+            if filter_last_seen_days > 0 and not _check_last_seen(user, filter_last_seen_days):
+                continue
+
+            user_data = {
+                "user_id":    user.id,
+                "username":   user.username or "",
+                "first_name": user.first_name or "",
+                "last_name":  user.last_name or "",
+                "phone":      user.phone or "",
+                "has_photo":  bool(user.photo),
+                "last_seen":  _last_seen_str(user),
+                "source":     source_name,
+            }
+            all_users.append(user_data)
+
+            batch_buffer.append((
+                user.id,
+                user.username or "",
+                user.first_name or "",
+                user.last_name or "",
+                user.phone or "",
+                1 if user.photo else 0,
+                _last_seen_str(user),
+                source_name
+            ))
+
+            if len(batch_buffer) >= BATCH_SIZE:
+                _flush_batch(batch_buffer)
+
+            if progress_callback and total_fetched % 10 == 0:
+                progress_callback(total_fetched, len(all_users))
+
+    except FloodWaitError as e:
+        logger.error(f"FloodWait {e.seconds}s — try again later")
+    except ChatAdminRequiredError:
+        logger.error("Admin rights required to scrape this group")
+    except ChannelPrivateError:
+        logger.error("Channel is private or you were banned")
+    except Exception as e:
+        logger.error(f"Scrape error: {type(e).__name__}: {e}")
+    finally:
+        _flush_batch(batch_buffer)
+
+    if progress_callback:
+        progress_callback(total_fetched, len(all_users))
+
+    logger.success(f"Scrape complete: {len(all_users)} users matched from {total_fetched} total in '{source_name}'")
+    return all_users
+
+
+=== FILE: core\session_manager.py ===
+
+"""
+CyberTG – Telethon Session Manager
+Handles multi-account connections with proxy support.
+All Telethon operations run on a SINGLE shared asyncio event loop thread
+to avoid session file lock conflicts.
+"""
+import asyncio
+import os
+import threading
+import socks
+from telethon import TelegramClient
+from telethon.errors import (
+    SessionPasswordNeededError,
+    PhoneCodeInvalidError,
+    PhoneNumberBannedError,
+    AuthKeyUnregisteredError,
+    FloodWaitError,
+)
+from core.db import update_account_status, get_all_accounts
+from core.logger import logger
+
+SESSIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sessions")
+
+
+def _ensure_sessions_dir():
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
+
+
+def _build_proxy(acc: dict):
+    """Build proxy dict for Telethon from account record."""
+    ptype = (acc.get("proxy_type") or "").strip().upper()
+    paddr = (acc.get("proxy_addr") or "").strip()
+    pport = acc.get("proxy_port") or 0
+
+    if not ptype or not paddr or not pport:
+        return None
+
+    proxy_map = {
+        "SOCKS5": socks.SOCKS5,
+        "SOCKS4": socks.SOCKS4,
+        "HTTP":   socks.HTTP,
+    }
+    stype = proxy_map.get(ptype)
+    if stype is None:
+        return None
+
+    puser = (acc.get("proxy_user") or "").strip() or None
+    ppass = (acc.get("proxy_pass") or "").strip() or None
+    return (stype, paddr, int(pport), True, puser, ppass)
+
+
+class SessionManager:
+    """Manages multiple Telethon client sessions on a single shared event loop."""
+
+    def __init__(self):
+        self.clients: dict[str, TelegramClient] = {}
+        _ensure_sessions_dir()
+
+        # Create a dedicated background event loop for ALL Telethon operations
+        self._loop = asyncio.new_event_loop()
+        self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._loop_thread.start()
+
+    def _run_loop(self):
+        """Background thread running the shared asyncio event loop forever."""
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def run_coro(self, coro, timeout=300):
+        """Run an async coroutine on the shared loop (blocking from caller thread).
+        This is the ONLY way to interact with Telethon clients."""
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result(timeout=timeout)
+
+    def run_coro_no_wait(self, coro):
+        """Schedule a coroutine on the shared loop without waiting."""
+        return asyncio.run_coroutine_threadsafe(coro, self._loop)
+
+    def _session_path(self, phone: str) -> str:
+        return os.path.join(SESSIONS_DIR, phone)
+
+    async def _connect_client(self, acc: dict) -> TelegramClient:
+        phone = acc["phone"]
+        api_id = int(acc["api_id"])
+        api_hash = acc["api_hash"]
+        proxy = _build_proxy(acc)
+
+        session_path = self._session_path(phone)
+        client = TelegramClient(session_path, api_id, api_hash, proxy=proxy)
+        await client.connect()
+        return client
+
+    async def login_send_code(self, acc: dict) -> tuple:
+        """Connect and send the login code. Returns (client, phone_code_hash)."""
+        client = await self._connect_client(acc)
+        phone = acc["phone"]
+
+        if await client.is_user_authorized():
+            self.clients[phone] = client
+            update_account_status(phone, "connected")
+            logger.success(f"Account {phone} already authorized")
+            return client, None
+
+        try:
+            result = await client.send_code_request(phone)
+            logger.info(f"Code sent to {phone}")
+            return client, result.phone_code_hash
+        except PhoneNumberBannedError:
+            logger.error(f"Phone {phone} is BANNED")
+            update_account_status(phone, "banned")
+            await client.disconnect()
+            raise
+        except FloodWaitError as e:
+            logger.error(f"FloodWait {e.seconds}s for {phone}")
+            update_account_status(phone, "flood")
+            await client.disconnect()
+            raise
+        except Exception as e:
+            logger.error(f"Error sending code to {phone}: {e}")
+            await client.disconnect()
+            raise
+
+    async def login_enter_code(self, client: TelegramClient, phone: str,
+                                code: str, phone_code_hash: str,
+                                password: str = None):
+        """Complete login with the received code (and 2FA if needed)."""
+        try:
+            await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
+        except SessionPasswordNeededError:
+            if not password:
+                raise
+            await client.sign_in(password=password)
+        except PhoneCodeInvalidError:
+            logger.error(f"Invalid code for {phone}")
+            raise
+
+        self.clients[phone] = client
+        update_account_status(phone, "connected")
+        logger.success(f"Account {phone} logged in successfully")
+
+    async def reconnect_account(self, acc: dict):
+        """Reconnect an already-authorized account."""
+        phone = acc["phone"]
+        try:
+            client = await self._connect_client(acc)
+            if await client.is_user_authorized():
+                self.clients[phone] = client
+                update_account_status(phone, "connected")
+                logger.success(f"Reconnected {phone}")
+            else:
+                update_account_status(phone, "need_login")
+                logger.warning(f"Session expired for {phone}, need re-login")
+                await client.disconnect()
+        except Exception as e:
+            update_account_status(phone, "error")
+            logger.error(f"Reconnect failed for {phone}: {e}")
+
+    async def reconnect_all(self):
+        """Reconnect all saved accounts."""
+        accounts = get_all_accounts()
+        for acc in accounts:
+            await self.reconnect_account(acc)
+
+    async def disconnect_account(self, phone: str):
+        client = self.clients.pop(phone, None)
+        if client:
+            await client.disconnect()
+            update_account_status(phone, "disconnected")
+            logger.info(f"Disconnected {phone}")
+
+    async def disconnect_all(self):
+        for phone in list(self.clients.keys()):
+            await self.disconnect_account(phone)
+
+    def get_connected_clients(self) -> list[TelegramClient]:
+        return list(self.clients.values())
+
+    def get_connected_phones(self) -> list[str]:
+        return list(self.clients.keys())
+
+    def get_client(self, phone: str):
+        return self.clients.get(phone)
+
+    def connected_count(self) -> int:
+        return len(self.clients)
+
+
+=== FILE: core\__init__.py ===
+
+# CyberTG Core Package
+
+
+=== FILE: gui\app.py ===
+
+"""
+CyberTG – Main Application Window
+Dark cyber-themed CustomTkinter interface with tabbed layout.
+"""
+import customtkinter as ctk
+from gui.tabs.accounts import AccountsTab
+from gui.tabs.scraper import ScraperTab
+from gui.tabs.adder import AdderTab
+from gui.tabs.logs import LogsTab
+from gui.tabs.settings import SettingsTab
+from core.session_manager import SessionManager
+from core.logger import logger
+
+# ─── Color Palette ──────────────────────────────────────────────────
+BG_DARK       = "#0a0e27"
+BG_CARD       = "#111638"
+BG_INPUT      = "#161b42"
+NEON_CYAN     = "#00d4ff"
+NEON_PURPLE   = "#7c3aed"
+NEON_GREEN    = "#10b981"
+NEON_RED      = "#ef4444"
+NEON_YELLOW   = "#f59e0b"
+TEXT_PRIMARY  = "#e2e8f0"
+TEXT_MUTED    = "#64748b"
+BORDER_COLOR  = "#1e2550"
+
+
+class CyberTGApp(ctk.CTk):
+    """Main Application Window."""
+
+    def __init__(self):
+        super().__init__()
+
+        # ── Window config ──────────────────────────────────────
+        self.title("CyberTG Mass Scraper & Adder 2026")
+        self.geometry("1200x750")
+        self.minsize(1000, 650)
+        self.configure(fg_color=BG_DARK)
+
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
+
+        # ── Session manager (shared) ──────────────────────────
+        self.session_manager = SessionManager()
+
+        # ── Header bar ─────────────────────────────────────────
+        self._build_header()
+
+        # ── Tab view ───────────────────────────────────────────
+        self._build_tabs()
+
+        # ── Status bar ─────────────────────────────────────────
+        self._build_status_bar()
+
+        # ── Periodic updates ───────────────────────────────────
+        self._update_status()
+
+        # ── Auto-reconnect saved accounts (on shared loop) ────
+        import threading
+        threading.Thread(target=self._auto_reconnect, daemon=True).start()
+
+    # ────────────────────── Header ──────────────────────────────
+    def _build_header(self):
+        header = ctk.CTkFrame(self, fg_color=BG_CARD, height=60, corner_radius=0)
+        header.pack(fill="x", padx=0, pady=0)
+        header.pack_propagate(False)
+
+        # Logo / Title
+        title_frame = ctk.CTkFrame(header, fg_color="transparent")
+        title_frame.pack(side="left", padx=20, pady=10)
+
+        ctk.CTkLabel(
+            title_frame,
+            text="⚡ CyberTG",
+            font=ctk.CTkFont(family="Segoe UI", size=22, weight="bold"),
+            text_color=NEON_CYAN
+        ).pack(side="left")
+
+        ctk.CTkLabel(
+            title_frame,
+            text="  Mass Scraper & Adder 2026",
+            font=ctk.CTkFont(family="Segoe UI", size=14),
+            text_color=TEXT_MUTED
+        ).pack(side="left", padx=(5, 0))
+
+        # Version badge
+        badge = ctk.CTkLabel(
+            header,
+            text="v2.0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=BG_DARK,
+            fg_color=NEON_PURPLE,
+            corner_radius=8,
+            width=45,
+            height=24
+        )
+        badge.pack(side="right", padx=20)
+
+    # ────────────────────── Tabs ────────────────────────────────
+    def _build_tabs(self):
+        self.tabview = ctk.CTkTabview(
+            self,
+            fg_color=BG_DARK,
+            segmented_button_fg_color=BG_CARD,
+            segmented_button_selected_color=NEON_PURPLE,
+            segmented_button_selected_hover_color="#6d28d9",
+            segmented_button_unselected_color=BG_CARD,
+            segmented_button_unselected_hover_color=BG_INPUT,
+            text_color=TEXT_PRIMARY,
+            corner_radius=10,
+        )
+        self.tabview.pack(fill="both", expand=True, padx=15, pady=(10, 5))
+
+        # Create tabs
+        tab_accounts = self.tabview.add("  📱 Accounts  ")
+        tab_scraper  = self.tabview.add("  🔍 Scraper  ")
+        tab_adder    = self.tabview.add("  ➕ Adder  ")
+        tab_logs     = self.tabview.add("  📋 Logs  ")
+        tab_settings = self.tabview.add("  ⚙️ Settings  ")
+
+        # Initialize tab contents
+        self.accounts_tab = AccountsTab(tab_accounts, self.session_manager)
+        self.scraper_tab  = ScraperTab(tab_scraper, self.session_manager)
+        self.adder_tab    = AdderTab(tab_adder, self.session_manager)
+        self.logs_tab     = LogsTab(tab_logs)
+        self.settings_tab = SettingsTab(tab_settings)
+
+    # ────────────────────── Status Bar ──────────────────────────
+    def _build_status_bar(self):
+        self.status_bar = ctk.CTkFrame(self, fg_color=BG_CARD, height=32, corner_radius=0)
+        self.status_bar.pack(fill="x", padx=0, pady=0, side="bottom")
+        self.status_bar.pack_propagate(False)
+
+        self.status_label = ctk.CTkLabel(
+            self.status_bar,
+            text="● 0 accounts connected",
+            font=ctk.CTkFont(size=12),
+            text_color=TEXT_MUTED
+        )
+        self.status_label.pack(side="left", padx=15)
+
+        self.status_right = ctk.CTkLabel(
+            self.status_bar,
+            text="CyberTG 2026 — Ready",
+            font=ctk.CTkFont(size=11),
+            text_color=TEXT_MUTED
+        )
+        self.status_right.pack(side="right", padx=15)
+
+    # ────────────────────── Periodic Updates ────────────────────
+    def _update_status(self):
+        count = self.session_manager.connected_count()
+        color = NEON_GREEN if count > 0 else NEON_RED
+        self.status_label.configure(
+            text=f"● {count} account(s) connected",
+            text_color=color
+        )
+        # Drain logs to logs tab
+        self.logs_tab.poll_logs()
+        self.after(500, self._update_status)
+
+    def _auto_reconnect(self):
+        """Reconnect all saved accounts on startup using SM's shared loop."""
+        try:
+            self.session_manager.run_coro(self.session_manager.reconnect_all())
+        except Exception as e:
+            logger.error(f"Auto-reconnect failed: {e}")
+
+
+=== FILE: gui\__init__.py ===
+
+# CyberTG GUI Package
+
+
+=== FILE: gui/tabs\accounts.py ===
+
+"""
+CyberTG – Accounts Tab
+Manage Telegram accounts: add, login, proxy config, delete.
+"""
+import threading
+import customtkinter as ctk
+from core.session_manager import SessionManager
+from core.db import add_account, get_all_accounts, delete_account
+from core.logger import logger
+
+BG_DARK      = "#0a0e27"
+BG_CARD      = "#111638"
+BG_INPUT     = "#161b42"
+NEON_CYAN    = "#00d4ff"
+NEON_PURPLE  = "#7c3aed"
+NEON_GREEN   = "#10b981"
+NEON_RED     = "#ef4444"
+TEXT_PRIMARY = "#e2e8f0"
+TEXT_MUTED   = "#64748b"
+BORDER       = "#1e2550"
+
+
+class CodeDialog(ctk.CTkToplevel):
+    """Dialog for entering verification code / 2FA password."""
+    def __init__(self, parent, phone):
+        super().__init__(parent)
+        self.title(f"Verification — {phone}")
+        self.geometry("400x260")
+        self.configure(fg_color=BG_DARK)
+        self.resizable(False, False)
+        self.grab_set()
+
+        self.result_code = None
+        self.result_password = None
+
+        ctk.CTkLabel(self, text=f"📱 Code sent to {phone}",
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color=NEON_CYAN).pack(pady=(20, 10))
+
+        self.code_entry = ctk.CTkEntry(self, placeholder_text="Enter code",
+                                        width=250, height=40,
+                                        fg_color=BG_INPUT, border_color=BORDER,
+                                        text_color=TEXT_PRIMARY)
+        self.code_entry.pack(pady=5)
+
+        self.pass_entry = ctk.CTkEntry(self, placeholder_text="2FA password (if needed)",
+                                        width=250, height=40, show="•",
+                                        fg_color=BG_INPUT, border_color=BORDER,
+                                        text_color=TEXT_PRIMARY)
+        self.pass_entry.pack(pady=5)
+
+        ctk.CTkButton(self, text="✓ Confirm", width=200, height=40,
+                      fg_color=NEON_GREEN, hover_color="#059669",
+                      text_color=BG_DARK, font=ctk.CTkFont(size=14, weight="bold"),
+                      command=self._confirm).pack(pady=15)
+
+    def _confirm(self):
+        self.result_code = self.code_entry.get().strip()
+        self.result_password = self.pass_entry.get().strip() or None
+        self.destroy()
+
+
+class AccountsTab:
+    """Accounts management interface."""
+
+    def __init__(self, parent: ctk.CTkFrame, session_manager: SessionManager):
+        self.parent = parent
+        self.sm = session_manager
+        self._build_ui()
+        self._refresh_table()
+
+    def _build_ui(self):
+        self.parent.configure(fg_color=BG_DARK)
+
+        # ── Top: Add Account Form ─────────────────────────────
+        form_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        form_frame.pack(fill="x", padx=10, pady=(10, 5))
+
+        ctk.CTkLabel(form_frame, text="➕ Add New Account",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 8))
+
+        # Row 1: Phone, API ID, API Hash
+        row1 = ctk.CTkFrame(form_frame, fg_color="transparent")
+        row1.pack(fill="x", padx=15, pady=3)
+
+        self.phone_entry = self._labeled_entry(row1, "Phone (intl)", "+5511999999999", 180)
+        self.api_id_entry = self._labeled_entry(row1, "API ID", "12345678", 120)
+        self.api_hash_entry = self._labeled_entry(row1, "API Hash", "abcdef1234567890", 220)
+
+        # Row 2: Proxy
+        row2 = ctk.CTkFrame(form_frame, fg_color="transparent")
+        row2.pack(fill="x", padx=15, pady=3)
+
+        self.proxy_type = ctk.CTkOptionMenu(row2, values=["", "SOCKS5", "HTTP"],
+                                             width=100, height=35,
+                                             fg_color=BG_INPUT, button_color=NEON_PURPLE,
+                                             text_color=TEXT_PRIMARY)
+        self.proxy_type.set("")
+        ctk.CTkLabel(row2, text="Proxy", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 2))
+        self.proxy_type.pack(side="left", padx=3)
+
+        self.proxy_addr = self._labeled_entry(row2, "Address", "1.2.3.4", 130)
+        self.proxy_port = self._labeled_entry(row2, "Port", "1080", 70)
+        self.proxy_user = self._labeled_entry(row2, "User", "", 90)
+        self.proxy_pass = self._labeled_entry(row2, "Pass", "", 90)
+
+        # Button
+        btn_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=15, pady=(5, 12))
+
+        ctk.CTkButton(btn_frame, text="🔐 Add & Login", width=180, height=40,
+                      fg_color=NEON_PURPLE, hover_color="#6d28d9",
+                      font=ctk.CTkFont(size=14, weight="bold"),
+                      command=self._add_account).pack(side="left")
+
+        ctk.CTkButton(btn_frame, text="🔄 Reconnect All", width=160, height=40,
+                      fg_color=BG_INPUT, hover_color=BORDER,
+                      border_width=1, border_color=NEON_CYAN,
+                      text_color=NEON_CYAN,
+                      font=ctk.CTkFont(size=13),
+                      command=self._reconnect_all).pack(side="left", padx=10)
+
+        # ── Bottom: Accounts Table ────────────────────────────
+        table_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        table_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        ctk.CTkLabel(table_frame, text="📋 Saved Accounts",
+                     font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color=TEXT_PRIMARY).pack(anchor="w", padx=15, pady=(12, 5))
+
+        # Headers
+        hdr = ctk.CTkFrame(table_frame, fg_color=BG_INPUT, corner_radius=6, height=35)
+        hdr.pack(fill="x", padx=12, pady=(0, 2))
+        hdr.pack_propagate(False)
+        for text, w in [("Phone", 150), ("API ID", 100), ("Proxy", 160),
+                        ("Status", 110), ("Actions", 150)]:
+            ctk.CTkLabel(hdr, text=text, width=w, text_color=NEON_CYAN,
+                         font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=5)
+
+        self.table_scroll = ctk.CTkScrollableFrame(table_frame, fg_color="transparent")
+        self.table_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 10))
+
+    def _labeled_entry(self, parent, label, placeholder, width):
+        ctk.CTkLabel(parent, text=label, text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=11)).pack(side="left", padx=(5, 2))
+        entry = ctk.CTkEntry(parent, placeholder_text=placeholder,
+                              width=width, height=35,
+                              fg_color=BG_INPUT, border_color=BORDER,
+                              text_color=TEXT_PRIMARY)
+        entry.pack(side="left", padx=3)
+        return entry
+
+    def _refresh_table(self):
+        for widget in self.table_scroll.winfo_children():
+            widget.destroy()
+
+        accounts = get_all_accounts()
+        if not accounts:
+            ctk.CTkLabel(self.table_scroll, text="No accounts added yet",
+                         text_color=TEXT_MUTED,
+                         font=ctk.CTkFont(size=13)).pack(pady=30)
+            return
+
+        for acc in accounts:
+            row = ctk.CTkFrame(self.table_scroll, fg_color=BG_INPUT,
+                               corner_radius=8, height=40)
+            row.pack(fill="x", pady=2)
+            row.pack_propagate(False)
+
+            ctk.CTkLabel(row, text=acc["phone"], width=150,
+                         text_color=TEXT_PRIMARY,
+                         font=ctk.CTkFont(size=12)).pack(side="left", padx=5)
+
+            ctk.CTkLabel(row, text=str(acc["api_id"])[:10], width=100,
+                         text_color=TEXT_MUTED,
+                         font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+
+            proxy_str = f'{acc["proxy_type"]}:{acc["proxy_addr"]}' if acc["proxy_type"] else "None"
+            ctk.CTkLabel(row, text=proxy_str, width=160,
+                         text_color=TEXT_MUTED,
+                         font=ctk.CTkFont(size=11)).pack(side="left", padx=5)
+
+            status = acc["status"]
+            s_color = NEON_GREEN if status == "connected" else (NEON_RED if status in ("banned", "error") else TEXT_MUTED)
+            ctk.CTkLabel(row, text=f"● {status}", width=110,
+                         text_color=s_color,
+                         font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=5)
+
+            # Actions
+            act_frame = ctk.CTkFrame(row, fg_color="transparent")
+            act_frame.pack(side="left", padx=5)
+
+            phone = acc["phone"]
+            ctk.CTkButton(act_frame, text="🔄", width=35, height=28,
+                          fg_color=BG_CARD, hover_color=BORDER,
+                          command=lambda p=phone: self._reconnect_single(p)).pack(side="left", padx=2)
+            ctk.CTkButton(act_frame, text="🗑️", width=35, height=28,
+                          fg_color=BG_CARD, hover_color=NEON_RED,
+                          command=lambda p=phone: self._delete_account(p)).pack(side="left", padx=2)
+
+    def _add_account(self):
+        phone = self.phone_entry.get().strip()
+        api_id = self.api_id_entry.get().strip()
+        api_hash = self.api_hash_entry.get().strip()
+
+        if not phone or not api_id or not api_hash:
+            logger.error("Phone, API ID, and API Hash are required")
+            return
+
+        proxy_t = self.proxy_type.get()
+        proxy_a = self.proxy_addr.get().strip()
+        proxy_p = self.proxy_port.get().strip()
+        proxy_u = self.proxy_user.get().strip()
+        proxy_pw = self.proxy_pass.get().strip()
+
+        add_account(phone, api_id, api_hash, proxy_t, proxy_a,
+                    int(proxy_p) if proxy_p else 0, proxy_u, proxy_pw)
+        logger.info(f"Account {phone} saved to database")
+        self._refresh_table()
+
+        # Start login in background thread but using SM's shared loop
+        acc = {
+            "phone": phone, "api_id": api_id, "api_hash": api_hash,
+            "proxy_type": proxy_t, "proxy_addr": proxy_a,
+            "proxy_port": int(proxy_p) if proxy_p else 0,
+            "proxy_user": proxy_u, "proxy_pass": proxy_pw
+        }
+        threading.Thread(target=self._login_thread, args=(acc,), daemon=True).start()
+
+    def _login_thread(self, acc):
+        """Run login on the SM's shared loop (NOT a new loop)."""
+        try:
+            client, code_hash = self.sm.run_coro(
+                self.sm.login_send_code(acc)
+            )
+            if code_hash is None:
+                # Already authorized
+                self.parent.after(100, self._refresh_table)
+                return
+
+            # Need code — show dialog on main thread
+            self.parent.after(0, lambda: self._show_code_dialog(client, acc["phone"], code_hash))
+        except Exception as e:
+            logger.error(f"Login failed: {e}")
+            self.parent.after(100, self._refresh_table)
+
+    def _show_code_dialog(self, client, phone, code_hash):
+        dialog = CodeDialog(self.parent, phone)
+        self.parent.wait_window(dialog)
+
+        code = dialog.result_code
+        password = dialog.result_password
+        if not code:
+            logger.warning(f"Login cancelled for {phone}")
+            return
+
+        threading.Thread(target=self._enter_code_thread,
+                         args=(client, phone, code, code_hash, password),
+                         daemon=True).start()
+
+    def _enter_code_thread(self, client, phone, code, code_hash, password):
+        """Enter code on the SM's shared loop."""
+        try:
+            self.sm.run_coro(
+                self.sm.login_enter_code(client, phone, code, code_hash, password)
+            )
+        except Exception as e:
+            logger.error(f"Code verification failed: {e}")
+        self.parent.after(100, self._refresh_table)
+
+    def _reconnect_single(self, phone):
+        accounts = get_all_accounts()
+        acc = next((a for a in accounts if a["phone"] == phone), None)
+        if not acc:
+            return
+        threading.Thread(target=self._reconnect_thread, args=(acc,), daemon=True).start()
+
+    def _reconnect_thread(self, acc):
+        """Reconnect on the SM's shared loop."""
+        try:
+            self.sm.run_coro(self.sm.reconnect_account(acc))
+        except Exception as e:
+            logger.error(f"Reconnect failed: {e}")
+        self.parent.after(100, self._refresh_table)
+
+    def _reconnect_all(self):
+        threading.Thread(target=self._reconnect_all_thread, daemon=True).start()
+
+    def _reconnect_all_thread(self):
+        """Reconnect all on the SM's shared loop."""
+        try:
+            self.sm.run_coro(self.sm.reconnect_all())
+        except Exception as e:
+            logger.error(f"Reconnect all failed: {e}")
+        self.parent.after(100, self._refresh_table)
+
+    def _delete_account(self, phone):
+        delete_account(phone)
+        try:
+            self.sm.run_coro(self.sm.disconnect_account(phone))
+        except Exception:
+            pass
+        logger.info(f"Deleted account {phone}")
+        self._refresh_table()
+
+
+=== FILE: gui/tabs\adder.py ===
+
+"""
+CyberTG – Adder Tab
+Bulk-add scraped users to a target group with anti-ban controls.
+"""
+import asyncio
+import threading
+import customtkinter as ctk
+from core.session_manager import SessionManager
+from core.adder import add_members
+from core.db import get_scraped_users, get_source_groups, get_scraped_count
+from core.logger import logger
+
+BG_DARK      = "#0a0e27"
+BG_CARD      = "#111638"
+BG_INPUT     = "#161b42"
+NEON_CYAN    = "#00d4ff"
+NEON_PURPLE  = "#7c3aed"
+NEON_GREEN   = "#10b981"
+NEON_RED     = "#ef4444"
+NEON_YELLOW  = "#f59e0b"
+TEXT_PRIMARY = "#e2e8f0"
+TEXT_MUTED   = "#64748b"
+BORDER       = "#1e2550"
+
+
+class AdderTab:
+    """Adder interface — add scraped users to a target group."""
+
+    def __init__(self, parent: ctk.CTkFrame, session_manager: SessionManager):
+        self.parent = parent
+        self.sm = session_manager
+        self._pause_event = None
+        self._stop_event = None
+        self._is_running = False
+        self._build_ui()
+
+    def _build_ui(self):
+        self.parent.configure(fg_color=BG_DARK)
+
+        # ── Config Panel ───────────────────────────────────────
+        config = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        config.pack(fill="x", padx=10, pady=(10, 5))
+
+        ctk.CTkLabel(config, text="➕ Adder Configuration",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 8))
+
+        # Row 1: Target group + Source
+        row1 = ctk.CTkFrame(config, fg_color="transparent")
+        row1.pack(fill="x", padx=15, pady=3)
+
+        ctk.CTkLabel(row1, text="Target Group:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 5))
+        self.target_entry = ctk.CTkEntry(row1, placeholder_text="https://t.me/target_group",
+                                          width=350, height=38,
+                                          fg_color=BG_INPUT, border_color=BORDER,
+                                          text_color=TEXT_PRIMARY)
+        self.target_entry.pack(side="left", padx=5)
+
+        ctk.CTkLabel(row1, text="Source:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left", padx=(15, 5))
+        self.source_menu = ctk.CTkOptionMenu(row1, values=["All scraped users"],
+                                              width=200, height=38,
+                                              fg_color=BG_INPUT, button_color=NEON_PURPLE,
+                                              text_color=TEXT_PRIMARY)
+        self.source_menu.pack(side="left", padx=5)
+
+        ctk.CTkButton(row1, text="🔄", width=38, height=38,
+                      fg_color=BG_INPUT, hover_color=BORDER,
+                      command=self._refresh_sources).pack(side="left", padx=2)
+
+        # Row 2: Delay sliders
+        row2 = ctk.CTkFrame(config, fg_color="transparent")
+        row2.pack(fill="x", padx=15, pady=(8, 3))
+
+        ctk.CTkLabel(row2, text="Delay Range (seconds):", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 10))
+
+        ctk.CTkLabel(row2, text="Min:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 3))
+        self.delay_min = ctk.CTkSlider(row2, from_=3, to=30, number_of_steps=27,
+                                        width=150, height=18,
+                                        fg_color=BG_INPUT,
+                                        progress_color=NEON_PURPLE,
+                                        button_color=NEON_CYAN)
+        self.delay_min.set(8)
+        self.delay_min.pack(side="left", padx=3)
+        self.delay_min_label = ctk.CTkLabel(row2, text="8s", text_color=NEON_CYAN,
+                                             font=ctk.CTkFont(size=12, weight="bold"))
+        self.delay_min_label.pack(side="left", padx=(0, 15))
+
+        ctk.CTkLabel(row2, text="Max:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 3))
+        self.delay_max = ctk.CTkSlider(row2, from_=5, to=60, number_of_steps=55,
+                                        width=150, height=18,
+                                        fg_color=BG_INPUT,
+                                        progress_color=NEON_PURPLE,
+                                        button_color=NEON_CYAN)
+        self.delay_max.set(25)
+        self.delay_max.pack(side="left", padx=3)
+        self.delay_max_label = ctk.CTkLabel(row2, text="25s", text_color=NEON_CYAN,
+                                             font=ctk.CTkFont(size=12, weight="bold"))
+        self.delay_max_label.pack(side="left")
+
+        # Update labels on slider change
+        self.delay_min.configure(command=lambda v: self.delay_min_label.configure(text=f"{int(v)}s"))
+        self.delay_max.configure(command=lambda v: self.delay_max_label.configure(text=f"{int(v)}s"))
+
+        # Row 3: Buttons
+        row3 = ctk.CTkFrame(config, fg_color="transparent")
+        row3.pack(fill="x", padx=15, pady=(8, 12))
+
+        self.start_btn = ctk.CTkButton(row3, text="🚀 Start Adding", width=170, height=44,
+                                        fg_color=NEON_GREEN, hover_color="#059669",
+                                        text_color=BG_DARK,
+                                        font=ctk.CTkFont(size=14, weight="bold"),
+                                        command=self._start_add)
+        self.start_btn.pack(side="left")
+
+        self.pause_btn = ctk.CTkButton(row3, text="⏸ Pause", width=110, height=44,
+                                        fg_color=NEON_YELLOW, hover_color="#d97706",
+                                        text_color=BG_DARK,
+                                        font=ctk.CTkFont(size=13, weight="bold"),
+                                        command=self._toggle_pause, state="disabled")
+        self.pause_btn.pack(side="left", padx=8)
+
+        self.stop_btn = ctk.CTkButton(row3, text="⬛ Stop", width=100, height=44,
+                                       fg_color=NEON_RED, hover_color="#dc2626",
+                                       text_color="#fff",
+                                       font=ctk.CTkFont(size=13, weight="bold"),
+                                       command=self._stop_add, state="disabled")
+        self.stop_btn.pack(side="left")
+
+        # ── Progress Panel ─────────────────────────────────────
+        prog_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        prog_frame.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(prog_frame, text="📈 Progress",
+                     font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color=TEXT_PRIMARY).pack(anchor="w", padx=15, pady=(12, 5))
+
+        self.progress = ctk.CTkProgressBar(prog_frame, width=700, height=22,
+                                            fg_color=BG_INPUT,
+                                            progress_color=NEON_GREEN)
+        self.progress.pack(padx=15, pady=5)
+        self.progress.set(0)
+
+        # Stats row
+        stats_row = ctk.CTkFrame(prog_frame, fg_color="transparent")
+        stats_row.pack(fill="x", padx=15, pady=(5, 15))
+
+        self.stat_added = self._stat_card(stats_row, "✅ Added", "0", NEON_GREEN)
+        self.stat_skipped = self._stat_card(stats_row, "⏭ Skipped", "0", NEON_YELLOW)
+        self.stat_failed = self._stat_card(stats_row, "❌ Failed", "0", NEON_RED)
+        self.stat_remaining = self._stat_card(stats_row, "📋 Remaining", "0", NEON_CYAN)
+        self.stat_accounts = self._stat_card(stats_row, "👤 Accounts", "0", NEON_PURPLE)
+
+        # ── Info Panel ─────────────────────────────────────────
+        info = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        info.pack(fill="both", expand=True, padx=10, pady=5)
+
+        ctk.CTkLabel(info, text="ℹ️ Anti-Ban Protection Active",
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color=NEON_GREEN).pack(anchor="w", padx=15, pady=(12, 5))
+
+        protections = [
+            "• Round-robin account rotation distributes rate limits",
+            "• Random delay between 8-25s (configurable) prevents detection",
+            "• Auto-sleep on FloodWait errors with smart backoff",
+            "• Auto-disable accounts after 3 flood errors or PeerFlood",
+            "• Full error handling: Privacy, NotMutual, Banned, Deactivated",
+        ]
+        for p in protections:
+            ctk.CTkLabel(info, text=p, text_color=TEXT_MUTED,
+                         font=ctk.CTkFont(size=12),
+                         anchor="w").pack(anchor="w", padx=20, pady=1)
+
+    def _stat_card(self, parent, label, value, color):
+        card = ctk.CTkFrame(parent, fg_color=BG_INPUT, corner_radius=8,
+                            width=140, height=55)
+        card.pack(side="left", padx=5, expand=True, fill="x")
+        card.pack_propagate(False)
+
+        val_label = ctk.CTkLabel(card, text=value,
+                                  font=ctk.CTkFont(size=20, weight="bold"),
+                                  text_color=color)
+        val_label.pack(pady=(5, 0))
+        ctk.CTkLabel(card, text=label, text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=10)).pack()
+        return val_label
+
+    def _refresh_sources(self):
+        groups = get_source_groups()
+        options = ["All scraped users"] + groups
+        self.source_menu.configure(values=options)
+        self.source_menu.set(options[0])
+        # Update account count
+        count = self.sm.connected_count()
+        self.stat_accounts.configure(text=str(count))
+
+    def _start_add(self):
+        clients = self.sm.get_connected_clients()
+        if not clients:
+            logger.error("No connected accounts — go to Accounts tab first")
+            return
+
+        target = self.target_entry.get().strip()
+        if not target:
+            logger.error("Enter a target group link")
+            return
+
+        source = self.source_menu.get()
+        source_group = None if source == "All scraped users" else source
+        users = get_scraped_users(source_group=source_group, status="pending")
+
+        if not users:
+            logger.error("No pending users to add")
+            return
+
+        self._is_running = True
+        self._pause_event = asyncio.Event()
+        self._stop_event = asyncio.Event()
+
+        self.start_btn.configure(state="disabled")
+        self.pause_btn.configure(state="normal", text="⏸ Pause")
+        self.stop_btn.configure(state="normal")
+        self.progress.set(0)
+
+        self.stat_accounts.configure(text=str(len(clients)))
+        self.stat_remaining.configure(text=str(len(users)))
+
+        d_min = int(self.delay_min.get())
+        d_max = int(self.delay_max.get())
+        if d_max < d_min:
+            d_max = d_min + 5
+
+        threading.Thread(target=self._adder_thread,
+                         args=(clients, target, users, d_min, d_max),
+                         daemon=True).start()
+
+    def _adder_thread(self, clients, target, users, d_min, d_max):
+        """Dispatch add_members to the SM's shared event loop."""
+        def on_progress(added, skipped, failed, total):
+            self.parent.after(0, lambda: self._update_progress(added, skipped, failed, total))
+
+        try:
+            self.sm.run_coro(add_members(
+                clients=clients,
+                target_group_link=target,
+                users=users,
+                delay_min=d_min,
+                delay_max=d_max,
+                progress_callback=on_progress,
+                pause_event=self._pause_event,
+                stop_event=self._stop_event,
+            ), timeout=86400)  # Allow long-running adder
+        except Exception as e:
+            logger.error(f"Adder error: {e}")
+        finally:
+            self.parent.after(0, self._adder_done)
+
+    def _update_progress(self, added, skipped, failed, total):
+        done = added + skipped + failed
+        if total > 0:
+            self.progress.set(done / total)
+        self.stat_added.configure(text=str(added))
+        self.stat_skipped.configure(text=str(skipped))
+        self.stat_failed.configure(text=str(failed))
+        self.stat_remaining.configure(text=str(max(0, total - done)))
+
+    def _adder_done(self):
+        self._is_running = False
+        self.start_btn.configure(state="normal")
+        self.pause_btn.configure(state="disabled")
+        self.stop_btn.configure(state="disabled")
+        self.progress.set(1.0)
+
+    def _toggle_pause(self):
+        if self._pause_event is None:
+            return
+        if self._pause_event.is_set():
+            self._pause_event.clear()
+            self.pause_btn.configure(text="⏸ Pause", fg_color=NEON_YELLOW)
+            logger.info("Adder resumed")
+        else:
+            self._pause_event.set()
+            self.pause_btn.configure(text="▶ Resume", fg_color=NEON_GREEN)
+            logger.info("Adder paused")
+
+    def _stop_add(self):
+        if self._stop_event:
+            self._stop_event.set()
+        if self._pause_event:
+            self._pause_event.clear()
+        logger.warning("Stopping adder...")
+
+
+=== FILE: gui/tabs\logs.py ===
+
+"""
+CyberTG – Logs Tab
+Real-time log viewer with colored entries and export options.
+"""
+import os
+import customtkinter as ctk
+from tkinter import filedialog
+from core.logger import logger
+
+BG_DARK      = "#0a0e27"
+BG_CARD      = "#111638"
+BG_INPUT     = "#161b42"
+NEON_CYAN    = "#00d4ff"
+NEON_PURPLE  = "#7c3aed"
+NEON_GREEN   = "#10b981"
+NEON_RED     = "#ef4444"
+NEON_YELLOW  = "#f59e0b"
+TEXT_PRIMARY = "#e2e8f0"
+TEXT_MUTED   = "#64748b"
+BORDER       = "#1e2550"
+
+LEVEL_COLORS = {
+    "INFO":    NEON_CYAN,
+    "SUCCESS": NEON_GREEN,
+    "WARNING": NEON_YELLOW,
+    "ERROR":   NEON_RED,
+}
+
+
+class LogsTab:
+    """Real-time log viewer with export options."""
+
+    def __init__(self, parent: ctk.CTkFrame):
+        self.parent = parent
+        self.auto_scroll = True
+        self._build_ui()
+
+    def _build_ui(self):
+        self.parent.configure(fg_color=BG_DARK)
+
+        # ── Toolbar ────────────────────────────────────────────
+        toolbar = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=10, height=50)
+        toolbar.pack(fill="x", padx=10, pady=(10, 5))
+        toolbar.pack_propagate(False)
+
+        ctk.CTkLabel(toolbar, text="📋 Real-Time Logs",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(side="left", padx=15)
+
+        # Export buttons
+        ctk.CTkButton(toolbar, text="📄 Export TXT", width=110, height=32,
+                      fg_color=BG_INPUT, hover_color=BORDER,
+                      text_color=NEON_CYAN,
+                      font=ctk.CTkFont(size=12),
+                      command=self._export_txt).pack(side="right", padx=5)
+
+        ctk.CTkButton(toolbar, text="📊 Export CSV", width=110, height=32,
+                      fg_color=BG_INPUT, hover_color=BORDER,
+                      text_color=NEON_GREEN,
+                      font=ctk.CTkFont(size=12),
+                      command=self._export_csv).pack(side="right", padx=5)
+
+        ctk.CTkButton(toolbar, text="🗑️ Clear", width=80, height=32,
+                      fg_color=BG_INPUT, hover_color=NEON_RED,
+                      text_color=NEON_RED,
+                      font=ctk.CTkFont(size=12),
+                      command=self._clear_logs).pack(side="right", padx=5)
+
+        self.auto_scroll_btn = ctk.CTkButton(
+            toolbar, text="⬇ Auto-scroll: ON", width=140, height=32,
+            fg_color=NEON_PURPLE, hover_color="#6d28d9",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            command=self._toggle_autoscroll
+        )
+        self.auto_scroll_btn.pack(side="right", padx=5)
+
+        # ── Log Text Area ─────────────────────────────────────
+        self.log_text = ctk.CTkTextbox(
+            self.parent,
+            fg_color=BG_CARD,
+            text_color=TEXT_PRIMARY,
+            font=ctk.CTkFont(family="Consolas", size=12),
+            corner_radius=10,
+            border_width=1,
+            border_color=BORDER,
+            wrap="word",
+            state="disabled"
+        )
+        self.log_text.pack(fill="both", expand=True, padx=10, pady=5)
+
+        # Configure color tags
+        for level, color in LEVEL_COLORS.items():
+            self.log_text._textbox.tag_configure(level, foreground=color)
+        self.log_text._textbox.tag_configure("TIMESTAMP", foreground=TEXT_MUTED)
+
+    def poll_logs(self):
+        """Called periodically by the main app to drain log entries."""
+        entries = logger.drain()
+        if not entries:
+            return
+
+        self.log_text.configure(state="normal")
+        for entry in entries:
+            ts_part = f'[{entry["timestamp"]}] '
+            level_part = f'[{entry["level"]}] '
+            msg_part = entry["message"] + "\n"
+
+            self.log_text._textbox.insert("end", ts_part, "TIMESTAMP")
+            self.log_text._textbox.insert("end", level_part, entry["level"])
+            self.log_text._textbox.insert("end", msg_part, entry["level"])
+
+        self.log_text.configure(state="disabled")
+
+        if self.auto_scroll:
+            self.log_text._textbox.see("end")
+
+    def _toggle_autoscroll(self):
+        self.auto_scroll = not self.auto_scroll
+        state = "ON" if self.auto_scroll else "OFF"
+        self.auto_scroll_btn.configure(text=f"⬇ Auto-scroll: {state}")
+
+    def _clear_logs(self):
+        self.log_text.configure(state="normal")
+        self.log_text._textbox.delete("1.0", "end")
+        self.log_text.configure(state="disabled")
+        logger.clear()
+
+    def _export_txt(self):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt")],
+            title="Export Logs as TXT"
+        )
+        if path:
+            logger.export_txt(path)
+            logger.info(f"Logs exported to {path}")
+
+    def _export_csv(self):
+        path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            title="Export Logs as CSV"
+        )
+        if path:
+            logger.export_csv(path)
+            logger.info(f"Logs exported to {path}")
+
+
+=== FILE: gui/tabs\scraper.py ===
+
+"""
+CyberTG – Scraper Tab
+Scrape group/channel members with filters and progress.
+All Telethon operations dispatched to the SessionManager's shared loop.
+"""
+import threading
+import customtkinter as ctk
+from core.session_manager import SessionManager
+from core.scraper import scrape_group
+from core.db import get_scraped_count, get_all_scraped_users, clear_scraped_users
+from core.logger import logger
+
+BG_DARK      = "#0a0e27"
+BG_CARD      = "#111638"
+BG_INPUT     = "#161b42"
+NEON_CYAN    = "#00d4ff"
+NEON_PURPLE  = "#7c3aed"
+NEON_GREEN   = "#10b981"
+NEON_RED     = "#ef4444"
+TEXT_PRIMARY = "#e2e8f0"
+TEXT_MUTED   = "#64748b"
+BORDER       = "#1e2550"
+
+
+class ScraperTab:
+    """Scraper interface — scrape members from a group/channel."""
+
+    def __init__(self, parent: ctk.CTkFrame, session_manager: SessionManager):
+        self.parent = parent
+        self.sm = session_manager
+        self._is_scraping = False
+        self._stop_flag = False
+        self._build_ui()
+
+    def _build_ui(self):
+        self.parent.configure(fg_color=BG_DARK)
+
+        # ── Config Panel ───────────────────────────────────────
+        config = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        config.pack(fill="x", padx=10, pady=(10, 5))
+
+        ctk.CTkLabel(config, text="🔍 Scraper Configuration",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 8))
+
+        # Row: Group link + Account selector
+        row1 = ctk.CTkFrame(config, fg_color="transparent")
+        row1.pack(fill="x", padx=15, pady=3)
+
+        ctk.CTkLabel(row1, text="Group/Channel Link:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 5))
+        self.group_entry = ctk.CTkEntry(row1, placeholder_text="https://t.me/groupname or t.me/+invite",
+                                         width=400, height=38,
+                                         fg_color=BG_INPUT, border_color=BORDER,
+                                         text_color=TEXT_PRIMARY)
+        self.group_entry.pack(side="left", padx=5)
+
+        ctk.CTkLabel(row1, text="Account:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left", padx=(15, 5))
+        self.account_menu = ctk.CTkOptionMenu(row1, values=["— Select —"],
+                                               width=180, height=38,
+                                               fg_color=BG_INPUT, button_color=NEON_PURPLE,
+                                               text_color=TEXT_PRIMARY,
+                                               command=lambda _: None)
+        self.account_menu.pack(side="left", padx=5)
+
+        ctk.CTkButton(row1, text="🔄", width=38, height=38,
+                      fg_color=BG_INPUT, hover_color=BORDER,
+                      command=self._refresh_accounts).pack(side="left", padx=2)
+
+        # Row: Filters
+        row2 = ctk.CTkFrame(config, fg_color="transparent")
+        row2.pack(fill="x", padx=15, pady=(8, 3))
+
+        ctk.CTkLabel(row2, text="Filters:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 10))
+
+        self.filter_username = ctk.CTkCheckBox(row2, text="Has Username",
+                                                fg_color=NEON_PURPLE,
+                                                hover_color="#6d28d9",
+                                                text_color=TEXT_PRIMARY)
+        self.filter_username.pack(side="left", padx=8)
+        self.filter_username.select()
+
+        self.filter_not_bot = ctk.CTkCheckBox(row2, text="Not Bot",
+                                               fg_color=NEON_PURPLE,
+                                               hover_color="#6d28d9",
+                                               text_color=TEXT_PRIMARY)
+        self.filter_not_bot.pack(side="left", padx=8)
+        self.filter_not_bot.select()
+
+        self.filter_photo = ctk.CTkCheckBox(row2, text="Has Photo",
+                                             fg_color=NEON_PURPLE,
+                                             hover_color="#6d28d9",
+                                             text_color=TEXT_PRIMARY)
+        self.filter_photo.pack(side="left", padx=8)
+
+        self.filter_last_seen = ctk.CTkCheckBox(row2, text="Last Seen < 30 days",
+                                                  fg_color=NEON_PURPLE,
+                                                  hover_color="#6d28d9",
+                                                  text_color=TEXT_PRIMARY)
+        self.filter_last_seen.pack(side="left", padx=8)
+        self.filter_last_seen.select()
+
+        # Buttons + Progress
+        row3 = ctk.CTkFrame(config, fg_color="transparent")
+        row3.pack(fill="x", padx=15, pady=(8, 12))
+
+        self.start_btn = ctk.CTkButton(row3, text="🚀 Start Scraping", width=180, height=42,
+                                        fg_color=NEON_GREEN, hover_color="#059669",
+                                        text_color=BG_DARK,
+                                        font=ctk.CTkFont(size=14, weight="bold"),
+                                        command=self._start_scrape)
+        self.start_btn.pack(side="left")
+
+        self.stop_btn = ctk.CTkButton(row3, text="⬛ Stop", width=100, height=42,
+                                       fg_color=NEON_RED, hover_color="#dc2626",
+                                       text_color="#fff",
+                                       font=ctk.CTkFont(size=13, weight="bold"),
+                                       command=self._stop_scrape, state="disabled")
+        self.stop_btn.pack(side="left", padx=10)
+
+        self.progress = ctk.CTkProgressBar(row3, width=300, height=16,
+                                            fg_color=BG_INPUT,
+                                            progress_color=NEON_CYAN)
+        self.progress.pack(side="left", padx=15)
+        self.progress.set(0)
+
+        self.progress_label = ctk.CTkLabel(row3, text="0 members fetched | 0 matched",
+                                            text_color=TEXT_MUTED,
+                                            font=ctk.CTkFont(size=12))
+        self.progress_label.pack(side="left", padx=5)
+
+        # ── Results Table ──────────────────────────────────────
+        results_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        results_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        top_bar = ctk.CTkFrame(results_frame, fg_color="transparent")
+        top_bar.pack(fill="x", padx=15, pady=(10, 5))
+
+        self.results_title = ctk.CTkLabel(top_bar, text=f"📊 Scraped Users ({get_scraped_count()})",
+                                           font=ctk.CTkFont(size=15, weight="bold"),
+                                           text_color=TEXT_PRIMARY)
+        self.results_title.pack(side="left")
+
+        ctk.CTkButton(top_bar, text="🗑️ Clear All", width=100, height=30,
+                      fg_color=BG_INPUT, hover_color=NEON_RED,
+                      text_color=NEON_RED, font=ctk.CTkFont(size=11),
+                      command=self._clear_all).pack(side="right")
+
+        ctk.CTkButton(top_bar, text="🔄 Refresh", width=90, height=30,
+                      fg_color=BG_INPUT, hover_color=BORDER,
+                      text_color=NEON_CYAN, font=ctk.CTkFont(size=11),
+                      command=self._refresh_results).pack(side="right", padx=5)
+
+        # Table headers
+        hdr = ctk.CTkFrame(results_frame, fg_color=BG_INPUT, corner_radius=6, height=32)
+        hdr.pack(fill="x", padx=12, pady=(0, 2))
+        hdr.pack_propagate(False)
+        for text, w in [("User ID", 110), ("Username", 140), ("Name", 180),
+                        ("Photo", 60), ("Last Seen", 120), ("Source", 160)]:
+            ctk.CTkLabel(hdr, text=text, width=w, text_color=NEON_CYAN,
+                         font=ctk.CTkFont(size=11, weight="bold")).pack(side="left", padx=4)
+
+        self.results_scroll = ctk.CTkScrollableFrame(results_frame, fg_color="transparent")
+        self.results_scroll.pack(fill="both", expand=True, padx=12, pady=(0, 10))
+
+        self._refresh_results()
+        self._refresh_accounts()
+        self._auto_refresh_accounts()
+
+    def _auto_refresh_accounts(self):
+        """Periodically refresh the account dropdown every 2 seconds."""
+        self._refresh_accounts()
+        self.parent.after(2000, self._auto_refresh_accounts)
+
+    def _refresh_accounts(self):
+        phones = self.sm.get_connected_phones()
+        if phones:
+            self.account_menu.configure(values=phones)
+            self.account_menu.set(phones[0])
+        else:
+            self.account_menu.configure(values=["— No accounts —"])
+            self.account_menu.set("— No accounts —")
+
+    def _start_scrape(self):
+        phone = self.account_menu.get()
+        if not phone or phone.startswith("—"):
+            logger.error("Select a connected account first")
+            return
+
+        client = self.sm.get_client(phone)
+        if not client:
+            logger.error(f"Account {phone} is not connected")
+            return
+
+        group = self.group_entry.get().strip()
+        if not group:
+            logger.error("Enter a group/channel link")
+            return
+
+        self._is_scraping = True
+        self._stop_flag = False
+        self.start_btn.configure(state="disabled")
+        self.stop_btn.configure(state="normal")
+        self.progress.set(0)
+
+        filters = {
+            "filter_has_username": bool(self.filter_username.get()),
+            "filter_not_bot": bool(self.filter_not_bot.get()),
+            "filter_has_photo": bool(self.filter_photo.get()),
+            "filter_last_seen_days": 30 if self.filter_last_seen.get() else 0,
+        }
+
+        threading.Thread(target=self._scrape_thread, args=(client, group, filters),
+                         daemon=True).start()
+
+    def _scrape_thread(self, client, group, filters):
+        """Dispatch scrape_group to the SM's shared event loop."""
+        def on_progress(fetched, matched):
+            self.parent.after(0, lambda: self._update_progress(fetched, matched))
+
+        try:
+            self.sm.run_coro(scrape_group(
+                client, group,
+                progress_callback=on_progress,
+                stop_event=None,
+                **filters
+            ), timeout=600)
+        except Exception as e:
+            logger.error(f"Scrape error: {e}")
+        finally:
+            self.parent.after(0, self._scrape_done)
+
+    def _update_progress(self, fetched, matched):
+        self.progress_label.configure(text=f"{fetched} members fetched | {matched} matched")
+        if fetched > 0:
+            self.progress.set(min(0.95, fetched / max(fetched + 50, 200)))
+
+    def _scrape_done(self):
+        self._is_scraping = False
+        self.start_btn.configure(state="normal")
+        self.stop_btn.configure(state="disabled")
+        self.progress.set(1.0)
+        self._refresh_results()
+
+    def _stop_scrape(self):
+        self._stop_flag = True
+        logger.warning("Stopping scrape...")
+
+    def _refresh_results(self):
+        for w in self.results_scroll.winfo_children():
+            w.destroy()
+
+        users = get_all_scraped_users()
+        self.results_title.configure(text=f"📊 Scraped Users ({len(users)})")
+
+        for u in users[:500]:  # Show max 500 rows
+            row = ctk.CTkFrame(self.results_scroll, fg_color=BG_INPUT,
+                               corner_radius=6, height=32)
+            row.pack(fill="x", pady=1)
+            row.pack_propagate(False)
+
+            ctk.CTkLabel(row, text=str(u["user_id"]), width=110,
+                         text_color=TEXT_MUTED, font=ctk.CTkFont(size=11)).pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=f'@{u["username"]}' if u["username"] else "—", width=140,
+                         text_color=NEON_CYAN, font=ctk.CTkFont(size=11)).pack(side="left", padx=4)
+            name = f'{u["first_name"]} {u["last_name"]}'.strip() or "—"
+            ctk.CTkLabel(row, text=name, width=180,
+                         text_color=TEXT_PRIMARY, font=ctk.CTkFont(size=11)).pack(side="left", padx=4)
+            ctk.CTkLabel(row, text="✓" if u["has_photo"] else "✗", width=60,
+                         text_color=NEON_GREEN if u["has_photo"] else TEXT_MUTED,
+                         font=ctk.CTkFont(size=11)).pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=u["last_seen"], width=120,
+                         text_color=TEXT_MUTED, font=ctk.CTkFont(size=11)).pack(side="left", padx=4)
+            ctk.CTkLabel(row, text=u["source_group"][:25], width=160,
+                         text_color=TEXT_MUTED, font=ctk.CTkFont(size=11)).pack(side="left", padx=4)
+
+    def _clear_all(self):
+        clear_scraped_users()
+        self._refresh_results()
+        logger.info("All scraped users cleared")
+
+
+=== FILE: gui/tabs\settings.py ===
+
+"""
+CyberTG – Settings Tab
+App configuration: API credentials, delays, theme, build to exe.
+"""
+import os
+import sys
+import subprocess
+import threading
+import customtkinter as ctk
+from core.db import get_setting, set_setting
+from core.logger import logger
+
+BG_DARK      = "#0a0e27"
+BG_CARD      = "#111638"
+BG_INPUT     = "#161b42"
+NEON_CYAN    = "#00d4ff"
+NEON_PURPLE  = "#7c3aed"
+NEON_GREEN   = "#10b981"
+NEON_RED     = "#ef4444"
+TEXT_PRIMARY = "#e2e8f0"
+TEXT_MUTED   = "#64748b"
+BORDER       = "#1e2550"
+
+
+class SettingsTab:
+    """Application settings interface."""
+
+    def __init__(self, parent: ctk.CTkFrame):
+        self.parent = parent
+        self._build_ui()
+        self._load_settings()
+
+    def _build_ui(self):
+        self.parent.configure(fg_color=BG_DARK)
+
+        # ── API Configuration ──────────────────────────────────
+        api_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        api_frame.pack(fill="x", padx=10, pady=(10, 5))
+
+        ctk.CTkLabel(api_frame, text="🔑 Default API Credentials",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 8))
+
+        ctk.CTkLabel(api_frame, text="These will be pre-filled when adding new accounts",
+                     font=ctk.CTkFont(size=12),
+                     text_color=TEXT_MUTED).pack(anchor="w", padx=15, pady=(0, 5))
+
+        row1 = ctk.CTkFrame(api_frame, fg_color="transparent")
+        row1.pack(fill="x", padx=15, pady=3)
+
+        ctk.CTkLabel(row1, text="API ID:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12), width=80).pack(side="left")
+        self.api_id_entry = ctk.CTkEntry(row1, width=200, height=38,
+                                          fg_color=BG_INPUT, border_color=BORDER,
+                                          text_color=TEXT_PRIMARY,
+                                          placeholder_text="Get from my.telegram.org")
+        self.api_id_entry.pack(side="left", padx=5)
+
+        ctk.CTkLabel(row1, text="API Hash:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12), width=80).pack(side="left", padx=(20, 0))
+        self.api_hash_entry = ctk.CTkEntry(row1, width=300, height=38,
+                                            fg_color=BG_INPUT, border_color=BORDER,
+                                            text_color=TEXT_PRIMARY,
+                                            placeholder_text="Get from my.telegram.org")
+        self.api_hash_entry.pack(side="left", padx=5)
+
+        ctk.CTkButton(api_frame, text="💾 Save API Credentials", width=200, height=38,
+                      fg_color=NEON_PURPLE, hover_color="#6d28d9",
+                      font=ctk.CTkFont(size=13, weight="bold"),
+                      command=self._save_api).pack(anchor="w", padx=15, pady=(5, 15))
+
+        # ── Delay Configuration ────────────────────────────────
+        delay_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        delay_frame.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(delay_frame, text="⏱ Default Delay Configuration",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 8))
+
+        row2 = ctk.CTkFrame(delay_frame, fg_color="transparent")
+        row2.pack(fill="x", padx=15, pady=3)
+
+        ctk.CTkLabel(row2, text="Min Delay (s):", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left")
+        self.min_delay_entry = ctk.CTkEntry(row2, width=80, height=38,
+                                             fg_color=BG_INPUT, border_color=BORDER,
+                                             text_color=TEXT_PRIMARY)
+        self.min_delay_entry.pack(side="left", padx=5)
+
+        ctk.CTkLabel(row2, text="Max Delay (s):", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left", padx=(20, 0))
+        self.max_delay_entry = ctk.CTkEntry(row2, width=80, height=38,
+                                             fg_color=BG_INPUT, border_color=BORDER,
+                                             text_color=TEXT_PRIMARY)
+        self.max_delay_entry.pack(side="left", padx=5)
+
+        ctk.CTkButton(delay_frame, text="💾 Save Delays", width=160, height=38,
+                      fg_color=NEON_PURPLE, hover_color="#6d28d9",
+                      font=ctk.CTkFont(size=13, weight="bold"),
+                      command=self._save_delays).pack(anchor="w", padx=15, pady=(5, 15))
+
+        # ── Theme ──────────────────────────────────────────────
+        theme_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        theme_frame.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(theme_frame, text="🎨 Appearance",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 8))
+
+        theme_row = ctk.CTkFrame(theme_frame, fg_color="transparent")
+        theme_row.pack(fill="x", padx=15, pady=(0, 15))
+
+        ctk.CTkLabel(theme_row, text="Theme:", text_color=TEXT_MUTED,
+                     font=ctk.CTkFont(size=12)).pack(side="left")
+        self.theme_menu = ctk.CTkOptionMenu(theme_row, values=["Dark", "Light", "System"],
+                                             width=140, height=38,
+                                             fg_color=BG_INPUT, button_color=NEON_PURPLE,
+                                             text_color=TEXT_PRIMARY,
+                                             command=self._change_theme)
+        self.theme_menu.set("Dark")
+        self.theme_menu.pack(side="left", padx=10)
+
+        # ── Build to EXE ──────────────────────────────────────
+        build_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        build_frame.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(build_frame, text="📦 Compile to Executable",
+                     font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 5))
+
+        ctk.CTkLabel(build_frame, text="Creates a standalone .exe using PyInstaller",
+                     font=ctk.CTkFont(size=12),
+                     text_color=TEXT_MUTED).pack(anchor="w", padx=15, pady=(0, 5))
+
+        self.build_btn = ctk.CTkButton(build_frame, text="🔨 Build .exe", width=180, height=42,
+                                        fg_color=NEON_GREEN, hover_color="#059669",
+                                        text_color=BG_DARK,
+                                        font=ctk.CTkFont(size=14, weight="bold"),
+                                        command=self._build_exe)
+        self.build_btn.pack(anchor="w", padx=15, pady=(5, 10))
+
+        self.build_status = ctk.CTkLabel(build_frame, text="",
+                                          font=ctk.CTkFont(size=12),
+                                          text_color=TEXT_MUTED)
+        self.build_status.pack(anchor="w", padx=15, pady=(0, 15))
+
+        # ── About ─────────────────────────────────────────────
+        about_frame = ctk.CTkFrame(self.parent, fg_color=BG_CARD, corner_radius=12)
+        about_frame.pack(fill="x", padx=10, pady=(5, 10))
+
+        ctk.CTkLabel(about_frame, text="⚡ CyberTG Mass Scraper & Adder 2026",
+                     font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color=NEON_CYAN).pack(anchor="w", padx=15, pady=(12, 3))
+        ctk.CTkLabel(about_frame, text="Version 2.0 — Professional Telegram Automation Tool",
+                     font=ctk.CTkFont(size=12),
+                     text_color=TEXT_MUTED).pack(anchor="w", padx=15, pady=(0, 3))
+        ctk.CTkLabel(about_frame, text="Built with Telethon + CustomTkinter + SQLite",
+                     font=ctk.CTkFont(size=11),
+                     text_color=TEXT_MUTED).pack(anchor="w", padx=15, pady=(0, 15))
+
+    def _load_settings(self):
+        api_id = get_setting("default_api_id", "")
+        api_hash = get_setting("default_api_hash", "")
+        min_delay = get_setting("default_min_delay", "8")
+        max_delay = get_setting("default_max_delay", "25")
+
+        if api_id:
+            self.api_id_entry.insert(0, api_id)
+        if api_hash:
+            self.api_hash_entry.insert(0, api_hash)
+        self.min_delay_entry.insert(0, min_delay)
+        self.max_delay_entry.insert(0, max_delay)
+
+    def _save_api(self):
+        set_setting("default_api_id", self.api_id_entry.get().strip())
+        set_setting("default_api_hash", self.api_hash_entry.get().strip())
+        logger.success("API credentials saved")
+
+    def _save_delays(self):
+        set_setting("default_min_delay", self.min_delay_entry.get().strip())
+        set_setting("default_max_delay", self.max_delay_entry.get().strip())
+        logger.success("Default delays saved")
+
+    def _change_theme(self, value):
+        ctk.set_appearance_mode(value.lower())
+        set_setting("theme", value.lower())
+        logger.info(f"Theme changed to {value}")
+
+    def _build_exe(self):
+        self.build_btn.configure(state="disabled")
+        self.build_status.configure(text="🔄 Building... this may take a few minutes",
+                                     text_color=NEON_YELLOW)
+        threading.Thread(target=self._build_thread, daemon=True).start()
+
+    def _build_thread(self):
+        try:
+            project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            build_script = os.path.join(project_dir, "build.py")
+
+            result = subprocess.run(
+                [sys.executable, build_script],
+                capture_output=True, text=True, cwd=project_dir
+            )
+
+            if result.returncode == 0:
+                self.parent.after(0, lambda: self.build_status.configure(
+                    text="✅ Build succeeded! Check dist/ folder",
+                    text_color=NEON_GREEN))
+                logger.success("EXE build completed successfully")
+            else:
+                self.parent.after(0, lambda: self.build_status.configure(
+                    text=f"❌ Build failed: {result.stderr[:100]}",
+                    text_color=NEON_RED))
+                logger.error(f"Build failed: {result.stderr[:200]}")
+
+        except Exception as e:
+            self.parent.after(0, lambda: self.build_status.configure(
+                text=f"❌ Error: {str(e)[:80]}",
+                text_color=NEON_RED))
+            logger.error(f"Build error: {e}")
+        finally:
+            self.parent.after(0, lambda: self.build_btn.configure(state="normal"))
+
+
+=== FILE: gui/tabs\__init__.py ===
+
+# CyberTG GUI Tabs Package

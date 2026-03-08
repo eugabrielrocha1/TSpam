@@ -9,6 +9,7 @@ import os
 import threading
 import socks
 from telethon import TelegramClient
+from telethon.tl import functions
 from telethon.errors import (
     SessionPasswordNeededError,
     PhoneCodeInvalidError,
@@ -86,7 +87,20 @@ class SessionManager:
         proxy = _build_proxy(acc)
 
         session_path = self._session_path(phone)
-        client = TelegramClient(session_path, api_id, api_hash, proxy=proxy)
+
+        # FINGERPRINT DESKTOP OFICIAL 2026 — faz o Telegram achar que é o app desktop
+        client = TelegramClient(
+            session_path,
+            api_id,
+            api_hash,
+            proxy=proxy,
+            device_model="Telegram Desktop 5.12.0 x64",
+            system_version="Windows 11 Pro",
+            app_version="5.12.0",
+            lang_code="pt-br",
+            system_lang_code="pt-br"
+        )
+
         await client.connect()
         return client
 
@@ -183,3 +197,16 @@ class SessionManager:
 
     def connected_count(self) -> int:
         return len(self.clients)
+
+    async def reset_account(self, phone: str):
+        """Reset authorizations to clear cache and increase daily limit."""
+        client = self.clients.get(phone)
+        if client and await client.is_user_authorized():
+            try:
+                await client(functions.auth.ResetAuthorizationsRequest())
+                logger.success(f"Session reset successful: {phone} (daily limit freed)")
+                update_account_status(phone, "reset")
+            except Exception as e:
+                logger.error(f"Reset failed for {phone}: {e}")
+        else:
+            logger.warning(f"Cannot reset {phone} — not connected or not authorized")
