@@ -1,11 +1,15 @@
 """
-CyberTG – Self-Farm Module
+CyberTG – Self-Farm Module v2
 Automated Telegram account creation via SMS APIs + Telethon.
 Creates accounts, saves sessions to disk + DB, ready for adder round-robin.
+
+Supported SMS providers: 5sim.net, smspva.com, sms-activate.org
 """
 import asyncio
+import os
 import random
 import time
+import traceback
 import requests
 from datetime import datetime
 
@@ -30,15 +34,15 @@ from core.session_manager import SESSIONS_DIR
 
 # ─── SMS Provider Configs ──────────────────────────────────────────
 SMS_PROVIDERS = {
-    "smspva": {
-        "name": "SMSPVA",
-        "base_url": "https://smspva.com/priemnik.php",
-        "price_approx": 0.65,
-    },
     "5sim": {
         "name": "5sim.net",
         "base_url": "https://5sim.net/v1",
         "price_approx": 0.014,
+    },
+    "smspva": {
+        "name": "SMSPVA",
+        "base_url": "https://smspva.com/priemnik.php",
+        "price_approx": 0.65,
     },
     "smsactivate": {
         "name": "SMS-Activate",
@@ -60,6 +64,13 @@ COUNTRIES = {
     "KE": "Kenya",
 }
 
+# 5sim country slugs
+_5SIM_COUNTRIES = {
+    "US": "usa", "BR": "brazil", "IN": "india", "RU": "russia",
+    "UK": "england", "ID": "indonesia", "NG": "nigeria", "PH": "philippines",
+    "MM": "myanmar", "KE": "kenya",
+}
+
 
 # ─── SMS API Adapters ──────────────────────────────────────────────
 class SMSAdapter:
@@ -69,36 +80,151 @@ class SMSAdapter:
         self.api_key = api_key
 
     def buy_number(self, country: str = "US") -> tuple:
-        """Returns (phone_number, order_id) or raises."""
         raise NotImplementedError
 
     def get_code(self, order_id: str, max_wait: int = 120) -> str:
-        """Poll for SMS code. Returns code string or raises."""
         raise NotImplementedError
 
     def cancel_number(self, order_id: str):
-        """Cancel/release a number if code not received."""
+        pass
+
+    def finish_number(self, order_id: str):
         pass
 
 
-class SMSPVAAdapter(SMSAdapter):
-    """Adapter for smspva.com API."""
+# ────────────────────── 5sim.net ──────────────────────────
+class FiveSimAdapter(SMSAdapter):
+    """Adapter for 5sim.net API (Bearer token auth)."""
+
+    def _headers(self):
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Accept": "application/json",
+        }
+
+    def check_balance(self) -> float:
+        """Check 5sim balance to verify API key works."""
+        try:
+            r = requests.get(
+                "https://5sim.net/v1/user/profile",
+                headers=self._headers(), timeout=15,
+            )
+            logger.info(f"[5sim] Profile response ({r.status_code}): {r.text[:300]}")
+            if r.status_code == 200:
+                data = r.json()
+                balance = data.get("balance", 0)
+                logger.info(f"[5sim] Balance: {balance}")
+                return float(balance)
+            elif r.status_code == 401:
+                logger.error("[5sim] ❌ API Key INVALID (401 Unauthorized)")
+                raise Exception("5sim API Key is invalid (401)")
+            else:
+                logger.error(f"[5sim] Profile check failed: {r.status_code} {r.text[:200]}")
+                raise Exception(f"5sim profile check failed: {r.status_code}")
+        except requests.RequestException as e:
+            logger.error(f"[5sim] Connection error: {e}")
+            raise
 
     def buy_number(self, country: str = "US") -> tuple:
-        country_map = {"US": "US", "BR": "BR", "IN": "IN", "RU": "RU",
-                       "UK": "UK", "ID": "ID", "NG": "NG", "PH": "PH"}
-        cc = country_map.get(country, "US")
+        cc = _5SIM_COUNTRIES.get(country, "usa")
 
+        # Buy activation for telegram
+        url = f"https://5sim.net/v1/user/buy/activation/{cc}/any/telegram"
+        logger.info(f"[5sim] Buying number: GET {url}")
+
+        r = requests.get(url, headers=self._headers(), timeout=30)
+        logger.info(f"[5sim] Buy response ({r.status_code}): {r.text[:500]}")
+
+        if r.status_code != 200:
+            raise Exception(f"5sim buy_number HTTP {r.status_code}: {r.text[:300]}")
+
+        data = r.json()
+        if "id" not in data or "phone" not in data:
+            raise Exception(f"5sim buy_number missing id/phone: {data}")
+
+        phone = str(data["phone"])
+        if not phone.startswith("+"):
+            phone = "+" + phone
+        order_id = str(data["id"])
+
+        logger.success(f"[5sim] ✅ Number purchased: {phone} (order #{order_id})")
+        return phone, order_id
+
+    def get_code(self, order_id: str, max_wait: int = 120) -> str:
+        """Poll 5sim for SMS code."""
+        url = f"https://5sim.net/v1/user/check/{order_id}"
+        start = time.time()
+        attempt = 0
+
+        while time.time() - start < max_wait:
+            attempt += 1
+            try:
+                r = requests.get(url, headers=self._headers(), timeout=15)
+                data = r.json()
+                status = data.get("status", "")
+
+                logger.info(
+                    f"[5sim] Check #{attempt} (order {order_id}): "
+                    f"status={status}, sms={data.get('sms', [])}"
+                )
+
+                # 5sim statuses: PENDING, RECEIVED, CANCELED, TIMEOUT, FINISHED, BANNED
+                if status == "RECEIVED" or status == "FINISHED":
+                    sms_list = data.get("sms", [])
+                    if sms_list and len(sms_list) > 0:
+                        # The code can be in 'code' or 'text' field
+                        raw_code = sms_list[0].get("code", "") or sms_list[0].get("text", "")
+                        code = "".join(c for c in str(raw_code) if c.isdigit())
+                        if code and len(code) >= 4:
+                            logger.success(f"[5sim] ✅ Code received: {code}")
+                            return code
+                        else:
+                            logger.warning(f"[5sim] SMS found but no valid code: '{raw_code}'")
+
+                elif status in ("CANCELED", "TIMEOUT", "BANNED"):
+                    raise Exception(f"5sim order {order_id} ended with status: {status}")
+
+            except requests.RequestException as e:
+                logger.warning(f"[5sim] Check request error: {e}")
+
+            time.sleep(5)
+
+        raise Exception(f"5sim: SMS code not received within {max_wait}s (order {order_id})")
+
+    def cancel_number(self, order_id: str):
+        try:
+            r = requests.get(
+                f"https://5sim.net/v1/user/cancel/{order_id}",
+                headers=self._headers(), timeout=10,
+            )
+            logger.info(f"[5sim] Cancel order {order_id}: {r.status_code}")
+        except Exception as e:
+            logger.warning(f"[5sim] Cancel failed: {e}")
+
+    def finish_number(self, order_id: str):
+        try:
+            r = requests.get(
+                f"https://5sim.net/v1/user/finish/{order_id}",
+                headers=self._headers(), timeout=10,
+            )
+            logger.info(f"[5sim] Finish order {order_id}: {r.status_code}")
+        except Exception as e:
+            logger.warning(f"[5sim] Finish failed: {e}")
+
+
+# ────────────────────── SMSPVA ────────────────────────────
+class SMSPVAAdapter(SMSAdapter):
+
+    def buy_number(self, country: str = "US") -> tuple:
         r = requests.get(
             "https://smspva.com/priemnik.php",
             params={
-                "metession": "get_number",
-                "country": cc,
-                "service": "Telegram",
-                "apikey": self.api_key,
+                "metession": "get_number", "country": country,
+                "service": "Telegram", "apikey": self.api_key,
             },
             timeout=30,
         )
+        logger.info(f"[SMSPVA] Buy response: {r.text[:300]}")
         data = r.json()
         if data.get("response") == "1":
             return data["number"], str(data["id"])
@@ -110,15 +236,14 @@ class SMSPVAAdapter(SMSAdapter):
             r = requests.get(
                 "https://smspva.com/priemnik.php",
                 params={
-                    "metession": "get_sms",
-                    "country": "US",
-                    "service": "Telegram",
-                    "id": order_id,
+                    "metession": "get_sms", "country": "US",
+                    "service": "Telegram", "id": order_id,
                     "apikey": self.api_key,
                 },
                 timeout=15,
             )
             data = r.json()
+            logger.info(f"[SMSPVA] Check: {data}")
             if data.get("response") == "1" and data.get("sms"):
                 code = "".join(c for c in str(data["sms"]) if c.isdigit())
                 if code:
@@ -131,10 +256,8 @@ class SMSPVAAdapter(SMSAdapter):
             requests.get(
                 "https://smspva.com/priemnik.php",
                 params={
-                    "metession": "denial",
-                    "service": "Telegram",
-                    "id": order_id,
-                    "apikey": self.api_key,
+                    "metession": "denial", "service": "Telegram",
+                    "id": order_id, "apikey": self.api_key,
                 },
                 timeout=10,
             )
@@ -142,73 +265,22 @@ class SMSPVAAdapter(SMSAdapter):
             pass
 
 
-class FiveSimAdapter(SMSAdapter):
-    """Adapter for 5sim.net API."""
-
-    def buy_number(self, country: str = "US") -> tuple:
-        country_map = {"US": "usa", "BR": "brazil", "IN": "india", "RU": "russia",
-                       "UK": "england", "ID": "indonesia", "NG": "nigeria", "PH": "philippines"}
-        cc = country_map.get(country, "usa")
-
-        r = requests.get(
-            f"https://5sim.net/v1/user/buy/activation/{cc}/any/telegram",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=30,
-        )
-        data = r.json()
-        if "phone" in data and "id" in data:
-            phone = data["phone"]
-            if not phone.startswith("+"):
-                phone = "+" + phone
-            return phone, str(data["id"])
-        raise Exception(f"5sim buy_number failed: {data}")
-
-    def get_code(self, order_id: str, max_wait: int = 120) -> str:
-        start = time.time()
-        while time.time() - start < max_wait:
-            r = requests.get(
-                f"https://5sim.net/v1/user/check/{order_id}",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=15,
-            )
-            data = r.json()
-            if data.get("sms") and len(data["sms"]) > 0:
-                code_text = data["sms"][0].get("code", "")
-                code = "".join(c for c in code_text if c.isdigit())
-                if code:
-                    return code
-            time.sleep(5)
-        raise Exception("5sim: SMS code not received within timeout")
-
-    def cancel_number(self, order_id: str):
-        try:
-            requests.get(
-                f"https://5sim.net/v1/user/cancel/{order_id}",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=10,
-            )
-        except Exception:
-            pass
-
-
+# ────────────────────── SMS-Activate ──────────────────────
 class SMSActivateAdapter(SMSAdapter):
-    """Adapter for sms-activate.org API."""
 
     def buy_number(self, country: str = "US") -> tuple:
         country_map = {"US": "187", "BR": "73", "IN": "22", "RU": "0",
                        "UK": "16", "ID": "6", "NG": "19", "PH": "4"}
         cc = country_map.get(country, "187")
-
         r = requests.get(
             "https://api.sms-activate.org/stubs/handler_api.php",
             params={
-                "api_key": self.api_key,
-                "action": "getNumber",
-                "service": "tg",
-                "country": cc,
+                "api_key": self.api_key, "action": "getNumber",
+                "service": "tg", "country": cc,
             },
             timeout=30,
         )
+        logger.info(f"[SMS-Activate] Buy response: {r.text[:300]}")
         text = r.text
         if text.startswith("ACCESS_NUMBER"):
             parts = text.split(":")
@@ -216,33 +288,28 @@ class SMSActivateAdapter(SMSAdapter):
         raise Exception(f"SMS-Activate buy_number failed: {text}")
 
     def get_code(self, order_id: str, max_wait: int = 120) -> str:
-        # First set status to "ready"
         requests.get(
             "https://api.sms-activate.org/stubs/handler_api.php",
             params={
-                "api_key": self.api_key,
-                "action": "setStatus",
-                "id": order_id,
-                "status": "1",
+                "api_key": self.api_key, "action": "setStatus",
+                "id": order_id, "status": "1",
             },
             timeout=10,
         )
-
         start = time.time()
         while time.time() - start < max_wait:
             r = requests.get(
                 "https://api.sms-activate.org/stubs/handler_api.php",
                 params={
-                    "api_key": self.api_key,
-                    "action": "getStatus",
+                    "api_key": self.api_key, "action": "getStatus",
                     "id": order_id,
                 },
                 timeout=15,
             )
+            logger.info(f"[SMS-Activate] Check: {r.text[:200]}")
             text = r.text
             if text.startswith("STATUS_OK"):
-                code = text.split(":")[1]
-                return code
+                return text.split(":")[1]
             time.sleep(5)
         raise Exception("SMS-Activate: SMS code not received within timeout")
 
@@ -251,10 +318,8 @@ class SMSActivateAdapter(SMSAdapter):
             requests.get(
                 "https://api.sms-activate.org/stubs/handler_api.php",
                 params={
-                    "api_key": self.api_key,
-                    "action": "setStatus",
-                    "id": order_id,
-                    "status": "8",
+                    "api_key": self.api_key, "action": "setStatus",
+                    "id": order_id, "status": "8",
                 },
                 timeout=10,
             )
@@ -262,16 +327,17 @@ class SMSActivateAdapter(SMSAdapter):
             pass
 
 
+# ─── Factory ──────────────────────────────────────────────
 def get_sms_adapter(provider: str, api_key: str) -> SMSAdapter:
-    """Factory: return the correct SMS adapter."""
     adapters = {
-        "smspva": SMSPVAAdapter,
         "5sim": FiveSimAdapter,
+        "smspva": SMSPVAAdapter,
         "smsactivate": SMSActivateAdapter,
     }
     cls = adapters.get(provider)
     if not cls:
         raise ValueError(f"Unknown SMS provider: {provider}")
+    logger.info(f"[SMS] Using provider: {provider}")
     return cls(api_key)
 
 
@@ -295,30 +361,44 @@ class SelfFarmManager:
     async def create_single_account(self, country: str = "US",
                                      progress_callback=None) -> dict:
         """
-        Buy a number, register on Telegram, setup profile, save session.
-        Returns dict with account info or raises on failure.
+        Full flow: buy number → send code → receive SMS → sign up → save.
+        All blocking HTTP calls run in executor to avoid blocking the event loop.
         """
         sms = self._get_sms()
         phone = None
         order_id = None
         client = None
+        loop = asyncio.get_event_loop()
 
         try:
-            # Step 1: Buy number
-            if progress_callback:
-                progress_callback("buying_number", phone)
-            phone, order_id = sms.buy_number(country)
-            logger.info(f"🔢 Number purchased: {phone} (order {order_id})")
+            # ─── Step 1: Validate API key (5sim only) ──────────
+            if self.sms_provider == "5sim":
+                logger.info("[Farm] Step 0: Checking 5sim balance...")
+                if progress_callback:
+                    progress_callback("checking_api", "Verifying API key...")
+                balance = await loop.run_in_executor(None, sms.check_balance)
+                logger.info(f"[Farm] 5sim balance: {balance}")
+                if balance <= 0:
+                    raise Exception(f"5sim balance is zero ({balance}). Add funds first.")
 
-            # Step 2: Connect Telethon client
+            # ─── Step 1: Buy number ────────────────────────────
+            logger.info(f"[Farm] Step 1: Buying number ({self.sms_provider}, {country})...")
+            if progress_callback:
+                progress_callback("buying_number", None)
+
+            phone, order_id = await loop.run_in_executor(
+                None, sms.buy_number, country
+            )
+            logger.success(f"[Farm] 🔢 Number: {phone} (order #{order_id})")
+
+            # ─── Step 2: Connect Telethon ──────────────────────
+            logger.info("[Farm] Step 2: Connecting Telethon client...")
             if progress_callback:
                 progress_callback("connecting", phone)
-            import os
+
             session_path = os.path.join(SESSIONS_DIR, phone.replace("+", ""))
             client = TelegramClient(
-                session_path,
-                self.api_id,
-                self.api_hash,
+                session_path, self.api_id, self.api_hash,
                 device_model="Telegram Desktop 5.12.0 x64",
                 system_version="Windows 11 Pro",
                 app_version="5.12.0",
@@ -326,34 +406,43 @@ class SelfFarmManager:
                 system_lang_code="pt-br",
             )
             await client.connect()
+            logger.success("[Farm] Telethon connected")
 
-            # Step 3: Send code request
+            # ─── Step 3: Request verification code ─────────────
+            logger.info(f"[Farm] Step 3: Sending code request to {phone}...")
             if progress_callback:
                 progress_callback("sending_code", phone)
+
             sent = await client.send_code_request(phone)
             phone_code_hash = sent.phone_code_hash
-            logger.info(f"📨 Code requested for {phone}")
+            logger.success(f"[Farm] 📨 Code request sent (hash: {phone_code_hash[:10]}...)")
 
-            # Step 4: Wait for SMS code (blocking in thread)
+            # ─── Step 4: Wait for SMS code ─────────────────────
+            logger.info("[Farm] Step 4: Waiting for SMS code...")
             if progress_callback:
                 progress_callback("waiting_sms", phone)
-            code = await asyncio.get_event_loop().run_in_executor(
+
+            code = await loop.run_in_executor(
                 None, sms.get_code, order_id, 120
             )
-            logger.info(f"✅ SMS code received for {phone}: {code}")
+            logger.success(f"[Farm] ✅ SMS code received: {code}")
 
-            # Step 5: Sign in or sign up
+            # ─── Step 5: Sign in / Sign up ─────────────────────
+            logger.info(f"[Farm] Step 5: Signing in with code {code}...")
             if progress_callback:
                 progress_callback("signing_in", phone)
+
+            signed_up = False
             try:
                 await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
-                logger.info(f"Signed in to existing account: {phone}")
-            except PhoneNumberOccupiedError:
-                logger.info(f"Number already has account, signed in: {phone}")
+                logger.success(f"[Farm] Signed in to existing account: {phone}")
             except PhoneCodeInvalidError:
-                raise Exception(f"Invalid SMS code for {phone}")
+                raise Exception(f"Invalid SMS code: {code}")
+            except PhoneNumberBannedError:
+                raise Exception(f"Number {phone} is BANNED by Telegram")
             except Exception as sign_err:
-                # Might need sign_up for new number
+                # Number is new → need sign_up
+                logger.info(f"[Farm] sign_in failed ({sign_err}), trying sign_up...")
                 try:
                     rand_id = random.randint(10000, 99999)
                     await client.sign_up(
@@ -361,13 +450,18 @@ class SelfFarmManager:
                         first_name=f"User{rand_id}",
                         phone_code_hash=phone_code_hash,
                     )
-                    logger.info(f"📝 Signed up new account: {phone}")
+                    signed_up = True
+                    logger.success(f"[Farm] 📝 Signed up new account: {phone}")
                 except Exception as signup_err:
-                    raise Exception(f"Sign in/up failed: {sign_err} / {signup_err}")
+                    raise Exception(
+                        f"Sign in failed: {sign_err} | Sign up failed: {signup_err}"
+                    )
 
-            # Step 6: Setup profile
+            # ─── Step 6: Setup profile ─────────────────────────
+            logger.info("[Farm] Step 6: Setting up profile...")
             if progress_callback:
                 progress_callback("setup_profile", phone)
+
             try:
                 names = ["Alex", "Maria", "John", "Sara", "David", "Anna",
                          "Daniel", "Emily", "Carlos", "Sofia", "Lucas", "Mia"]
@@ -378,12 +472,21 @@ class SelfFarmManager:
                     last_name=random.choice(lasts),
                     about=""
                 ))
-            except Exception:
-                pass  # Profile update is non-critical
+                logger.success("[Farm] Profile updated")
+            except Exception as e:
+                logger.warning(f"[Farm] Profile update skipped: {e}")
 
-            # Step 7: Save to DB
+            # ─── Step 7: Finish SMS order ──────────────────────
+            try:
+                await loop.run_in_executor(None, sms.finish_number, order_id)
+            except Exception:
+                pass
+
+            # ─── Step 8: Save to DB ────────────────────────────
+            logger.info("[Farm] Step 7: Saving to database...")
             if progress_callback:
                 progress_callback("saving", phone)
+
             phone_clean = phone.replace("+", "")
             cost = SMS_PROVIDERS.get(self.sms_provider, {}).get("price_approx", 0.50)
             add_farmed_account(
@@ -391,7 +494,7 @@ class SelfFarmManager:
                 self.sms_provider, country, cost
             )
             update_account_status(phone_clean, "farmed")
-            logger.success(f"🌱 Account farmed successfully: {phone} (${cost:.2f})")
+            logger.success(f"[Farm] 🌱 DONE: {phone} saved (${cost:.2f})")
 
             await client.disconnect()
 
@@ -404,43 +507,52 @@ class SelfFarmManager:
             }
 
         except Exception as e:
-            logger.error(f"❌ Farm failed for {phone or 'unknown'}: {e}")
+            logger.error(f"[Farm] ❌ FAILED for {phone or 'unknown'}: {e}")
+            logger.error(f"[Farm] Traceback: {traceback.format_exc()}")
+
+            # Cancel unused SMS number
             if order_id:
                 try:
-                    sms.cancel_number(order_id)
+                    await loop.run_in_executor(None, sms.cancel_number, order_id)
                 except Exception:
                     pass
+
+            # Mark as failed in DB
             if phone:
-                phone_clean = phone.replace("+", "")
-                update_farm_status(phone_clean, "failed")
+                try:
+                    phone_clean = phone.replace("+", "")
+                    update_farm_status(phone_clean, "failed")
+                except Exception:
+                    pass
+
+            # Disconnect client
             if client:
                 try:
                     await client.disconnect()
                 except Exception:
                     pass
+
             raise
 
     async def bulk_create(self, quantity: int = 10, country: str = "US",
                            delay_between: float = 15.0,
                            progress_callback=None,
-                           stop_event: asyncio.Event = None) -> dict:
-        """
-        Create multiple accounts sequentially with delay.
-        Returns stats dict.
-        """
+                           stop_event=None) -> dict:
+        """Create multiple accounts sequentially with delay."""
         created = 0
         failed = 0
         total_cost = 0.0
         results = []
 
-        logger.info(f"🚜 Starting bulk farm: {quantity} accounts in {country}")
+        logger.info(f"[Farm] 🚜 BULK START: {quantity} accounts, country={country}, "
+                     f"provider={self.sms_provider}, delay={delay_between}s")
 
         for i in range(quantity):
             if stop_event and stop_event.is_set():
-                logger.warning("Farm stopped by user")
+                logger.warning("[Farm] ⬛ Stopped by user")
                 break
 
-            logger.info(f"━━━ Account {i + 1}/{quantity} ━━━")
+            logger.info(f"[Farm] ━━━ Account {i + 1}/{quantity} ━━━")
 
             try:
                 result = await self.create_single_account(
@@ -450,25 +562,29 @@ class SelfFarmManager:
                 created += 1
                 total_cost += result.get("cost", 0.0)
                 results.append(result)
+                logger.success(f"[Farm] Account {i + 1} ✅ OK ({created} total created)")
             except Exception as e:
                 failed += 1
-                logger.error(f"Account {i + 1} failed: {e}")
+                logger.error(f"[Farm] Account {i + 1} ❌ FAILED: {e}")
 
-            # Progress
+            # Progress callback
             if progress_callback:
-                progress_callback("batch_progress", f"{created}/{quantity} created, {failed} failed")
+                progress_callback(
+                    "batch_progress",
+                    f"{created}/{quantity} created, {failed} failed"
+                )
 
-            # Delay between creations (avoid rate limits)
+            # Delay between creations
             if i < quantity - 1:
                 delay = random.uniform(delay_between * 0.8, delay_between * 1.2)
-                logger.info(f"⏳ Waiting {delay:.1f}s before next account...")
+                logger.info(f"[Farm] ⏳ Waiting {delay:.1f}s before next...")
                 for _ in range(int(delay * 2)):
                     if stop_event and stop_event.is_set():
                         break
                     await asyncio.sleep(0.5)
 
         logger.success(
-            f"🏁 Bulk farm done: {created} created, {failed} failed, "
+            f"[Farm] 🏁 BULK DONE: {created} created, {failed} failed, "
             f"${total_cost:.2f} total cost"
         )
 
@@ -481,16 +597,14 @@ class SelfFarmManager:
 
     async def start_aging(self, phone_list: list, api_id: int = None,
                            api_hash: str = None):
-        """
-        Basic aging routine: log in, send a saved message, add a contact.
-        Run daily to make accounts look aged/active.
-        """
+        """Basic aging: log in, send saved message, update profile."""
         _api_id = api_id or self.api_id
         _api_hash = api_hash or self.api_hash
 
+        logger.info(f"[Aging] Starting for {len(phone_list)} accounts...")
+
         for phone in phone_list:
             try:
-                import os
                 session_path = os.path.join(SESSIONS_DIR, phone)
                 client = TelegramClient(
                     session_path, _api_id, _api_hash,
@@ -503,18 +617,16 @@ class SelfFarmManager:
                 await client.connect()
 
                 if not await client.is_user_authorized():
-                    logger.warning(f"Aging skip {phone} — not authorized")
+                    logger.warning(f"[Aging] Skip {phone} — not authorized")
                     await client.disconnect()
                     continue
 
-                # Send a message to Saved Messages
                 messages = [
                     "📝 Daily note", "🔄 Sync check", "✅ Active", "🕐 Ping",
                     "📊 Status OK", "🔒 Verified", "💬 Online", "⚡ Updated",
                 ]
                 await client.send_message("me", random.choice(messages))
 
-                # Update profile slightly
                 bios = ["", "Hello!", "Active user", "🌍", "📱"]
                 try:
                     await client(functions.account.UpdateProfileRequest(
@@ -524,11 +636,11 @@ class SelfFarmManager:
                     pass
 
                 update_farm_activity(phone)
-                logger.success(f"🌱 Aged activity for {phone}")
+                logger.success(f"[Aging] ✅ {phone} aged")
 
                 await client.disconnect()
                 await asyncio.sleep(random.uniform(2, 5))
 
             except Exception as e:
-                logger.error(f"Aging error for {phone}: {e}")
+                logger.error(f"[Aging] Error for {phone}: {e}")
                 continue

@@ -359,6 +359,7 @@ class SelfFarmTab:
         ).start()
 
     def _farm_thread(self, cfg, qty, country, delay):
+        logger.info(f"[Farm GUI] Thread started: {qty}x {country} via {cfg['sms_provider']}")
         farm = SelfFarmManager(
             api_id=cfg["api_id"],
             api_hash=cfg["api_hash"],
@@ -370,27 +371,31 @@ class SelfFarmTab:
             self.parent.after(0, lambda: self._update_progress(stage, info, qty))
 
         try:
-            self.sm.run_coro(farm.bulk_create(
+            result = self.sm.run_coro(farm.bulk_create(
                 quantity=qty,
                 country=country,
                 delay_between=float(delay),
                 progress_callback=on_progress,
                 stop_event=self._stop_event,
             ), timeout=86400)
+            logger.success(f"[Farm GUI] Thread finished: {result}")
         except Exception as e:
-            logger.error(f"Farm error: {e}")
+            logger.error(f"[Farm GUI] ❌ Thread error: {e}")
+            import traceback
+            logger.error(f"[Farm GUI] Traceback: {traceback.format_exc()}")
         finally:
             self.parent.after(0, self._farm_done)
 
     def _update_progress(self, stage, info, total):
         stage_labels = {
+            "checking_api": "🔑 Verifying API key...",
             "buying_number": "🔢 Buying number...",
-            "connecting": "🔌 Connecting...",
-            "sending_code": "📨 Sending code...",
-            "waiting_sms": "⏳ Waiting for SMS...",
-            "signing_in": "🔐 Signing in...",
-            "setup_profile": "👤 Setting up profile...",
-            "saving": "💾 Saving session...",
+            "connecting": f"🔌 Connecting ({info})...",
+            "sending_code": f"📨 Sending code to {info}...",
+            "waiting_sms": f"⏳ Waiting for SMS ({info})...",
+            "signing_in": f"🔐 Signing in {info}...",
+            "setup_profile": f"👤 Setting up profile ({info})...",
+            "saving": f"💾 Saving {info}...",
             "batch_progress": f"📊 {info}",
         }
         label = stage_labels.get(stage, str(stage))
